@@ -59,3 +59,6 @@ ehthumbs.db
 
 ## Local staging overlay (don't commit this helper folder)
 GitHub_RELEASE/
+
+## Release packaging staging (built by tools/make-release.ps1 and the release workflow)
+dist/

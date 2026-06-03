@@ -1,0 +1,115 @@
+name: Release
+
+# Builds the packed add-in, bundles it with the loose runtime files,
+# and publishes a GitHub Release with the .zip attached.
+#
+# Trigger it either way:
+#   - push a version tag:   git tag v0.1.0 && git push origin v0.1.0
+#   - or run it manually from the Actions tab (provide a tag like v0.1.0)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to create/publish (e.g. v0.1.0)'
+        required: true
+
+# Needed so the workflow can create the GitHub Release and (for manual runs) the tag.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.inputs.tag }}'
+          if ([string]::IsNullOrWhiteSpace($tag)) { $tag = '${{ github.ref_name }}' }
+          if ($tag -notmatch '^v\d') { throw "Expected a version tag like v0.1.0 but got '$tag'." }
+          "tag=$tag"                       >> $env:GITHUB_OUTPUT
+          "version=$($tag.TrimStart('v'))" >> $env:GITHUB_OUTPUT
+          Write-Host "Releasing $tag"
+
+      - name: Restore
+        run: dotnet restore PExL.sln
+
+      - name: Build (Release x64, auto-packs the .xll)
+        run: dotnet build PExL.sln -c Release -p:Platform=x64 --no-restore
+
+      - name: Test
+        run: dotnet test tests/PExL.Core.Tests/PExL.Core.Tests.csproj -c Release --no-build --verbosity normal
+
+      - name: Assemble distribution
+        id: pack
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = 'src/PExL.AddIn/bin/x64/Release/net48'
+
+          # The packed 64-bit loader is auto-created in the publish\ subfolder.
+          $xll = Get-ChildItem -Path $out -Recurse -Filter '*64-packed.xll' |
+                 Select-Object -First 1
+          if (-not $xll) { throw "Packed 64-bit .xll not found under '$out'. Did the build/pack run?" }
+
+          $name  = "PExL-${{ steps.ver.outputs.tag }}"
+          $stage = "dist/$name"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          # Add-in (rename to a clean, user-friendly name).
+          Copy-Item $xll.FullName (Join-Path $stage 'PExL.xll')
+
+          # Loose runtime files that are NOT packed into the .xll.
+          $wv2 = Join-Path $out 'WebView2Loader.dll'
+          if (Test-Path $wv2) { Copy-Item $wv2 $stage } else { Write-Warning 'WebView2Loader.dll not found' }
+
+          $web = Join-Path $out 'web'
+          if (Test-Path $web) { Copy-Item $web (Join-Path $stage 'web') -Recurse } else { Write-Warning 'web\ folder not found' }
+
+          # Docs + install guide.
+          if (Test-Path 'README.html')        { Copy-Item 'README.html' $stage }
+          if (Test-Path 'release/INSTALL.txt') { Copy-Item 'release/INSTALL.txt' $stage }
+
+          $zip = "dist/$name.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
+
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          Write-Host "Packaged $zip"
+          Get-ChildItem -Recurse $stage | Select-Object FullName
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: PExL ${{ steps.ver.outputs.tag }}
+          prerelease: true
+          generate_release_notes: true
+          files: ${{ steps.pack.outputs.zip }}
+          body: |
+            ## PExL ${{ steps.ver.outputs.tag }}
+
+            Experimental test build of the PExL Excel add-in.
+
+            ### Install (Excel for Windows, 64-bit)
+            1. Download `PExL-${{ steps.ver.outputs.tag }}.zip`.
+            2. **Right-click the zip → Properties → tick "Unblock" → OK** *(before extracting)*.
+            3. Extract to a permanent folder, e.g. `C:\Tools\PExL\`.
+            4. Double-click `PExL.xll` (or add it via File → Options → Add-ins → Excel Add-ins → Go… → Browse…).
+            5. Look for the **PExL** tab in the ribbon.
+
+            Needs the Microsoft Edge **WebView2 Runtime** (preinstalled on most machines) for the editor/docs pane.
+            Full install notes are in `INSTALL.txt` inside the zip.
