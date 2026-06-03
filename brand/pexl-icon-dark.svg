@@ -1,0 +1,12 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PExL">
+  <title>PExL app icon (dark)</title>
+  <defs>
+    <linearGradient id="pexlMark" x1="64" y1="80" x2="180" y2="176" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ec9b0"/>
+      <stop offset="1" stop-color="#569cd6"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#0d1117" stroke="#2a3240" stroke-width="2"/>
+  <rect x="74" y="80" width="20" height="96" rx="10" fill="url(#pexlMark)"/>
+  <path d="M116 80 L168 128 L116 176" fill="none" stroke="url(#pexlMark)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

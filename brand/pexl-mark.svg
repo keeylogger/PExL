@@ -1,0 +1,11 @@
+<svg width="128" height="120" viewBox="0 0 128 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PExL pipe mark">
+  <title>PExL pipe mark</title>
+  <defs>
+    <linearGradient id="pexlPipe" x1="0" y1="0" x2="128" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ec9b0"/>
+      <stop offset="1" stop-color="#569cd6"/>
+    </linearGradient>
+  </defs>
+  <rect x="14" y="12" width="18" height="96" rx="9" fill="url(#pexlPipe)"/>
+  <path d="M54 12 L106 60 L54 108" fill="none" stroke="url(#pexlPipe)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

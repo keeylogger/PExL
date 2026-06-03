@@ -1,0 +1,14 @@
+<svg width="440" height="128" viewBox="0 0 440 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PExL — Plain Excel Language">
+  <title>PExL — Plain Excel Language</title>
+  <defs>
+    <linearGradient id="pexlWord" x1="0" y1="0" x2="440" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4ec9b0"/>
+      <stop offset="1" stop-color="#569cd6"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="24" width="80" height="80" rx="22" fill="url(#pexlWord)"/>
+  <rect x="34" y="40" width="9" height="48" rx="4.5" fill="#ffffff"/>
+  <path d="M52 40 L74 64 L52 88" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="108" y="78" font-family="'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="58" font-weight="800" fill="url(#pexlWord)">PExL</text>
+  <text x="110" y="103" font-family="'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="15" letter-spacing="0.5" fill="#8b98a9">Plain Excel Language</text>
+</svg>
