@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PExL — Plain Excel Language</title>
+<link rel="icon" type="image/svg+xml" href="brand/pexl-icon-dark.svg" />
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#11161d; --panel:#161b22; --panel2:#1c2430;
+    --border:#2a3240; --fg:#e6edf3; --muted:#8b98a9;
+    --green:#4ec9b0; --blue:#569cd6; --purple:#c586c0; --orange:#ce9178;
+    --gold:#d7ba7d; --red:#f48771; --accent:#3fb950;
+    --radius:12px; --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,sans-serif;
+  }
+  [data-theme="light"]{
+    --bg:#f6f8fa; --bg2:#fff; --panel:#fff; --panel2:#f0f3f7;
+    --border:#d6dde6; --fg:#1f2630; --muted:#5b6675;
+    --green:#0a8f74; --blue:#0a5fb0; --purple:#9333a8; --orange:#b3541e;
+    --gold:#9a7d23; --red:#c0392b; --accent:#1a7f37;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.55;}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre{font-family:var(--mono)}
+  code,pre,textarea,.chipcode,.stage small{font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+
+  /* ---- nav ---- */
+  nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 88%,transparent);
+      backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+  nav .wrap{display:flex;align-items:center;gap:18px;height:58px}
+  nav .logo{font-weight:800;letter-spacing:.5px;font-size:20px;color:var(--green)}
+  nav .links{display:flex;gap:18px;margin-left:auto;flex-wrap:wrap}
+  nav .links a{color:var(--muted);font-size:14px;font-weight:500}
+  nav .links a:hover{color:var(--fg);text-decoration:none}
+  .themeBtn{background:var(--panel2);border:1px solid var(--border);color:var(--fg);
+    border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px}
+
+  /* ---- hero ---- */
+  header.hero{padding:64px 0 40px;text-align:center;
+    background:radial-gradient(1100px 380px at 50% -120px,rgba(78,201,176,.16),transparent)}
+  header.hero h1{font-size:64px;margin:0;letter-spacing:-1px;
+    background:linear-gradient(120deg,var(--green),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+  header.hero .sub{font-size:20px;color:var(--fg);margin:6px 0 2px;font-weight:600}
+  header.hero p.tag{font-size:16px;color:var(--muted);max-width:620px;margin:14px auto 26px}
+  .transform{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px}
+  .chipcode{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;
+    font-family:var(--mono);font-size:14px;text-align:left;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .arrowbig{font-size:26px;color:var(--green)}
+  .cta{display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+  .btn{padding:11px 20px;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;border:1px solid var(--border)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+  .btn.secondary{background:var(--panel);color:var(--fg)}
+
+  section{padding:46px 0;border-top:1px solid var(--border)}
+  section h2{font-size:30px;margin:0 0 6px}
+  section .lede{color:var(--muted);margin:0 0 26px;font-size:15.5px}
+
+  /* ---- code blocks + highlighting ---- */
+  pre.code{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;overflow:auto;font-size:13.5px;margin:0}
+  .tok-cm{color:var(--muted);font-style:italic}
+  .tok-kw{color:var(--purple)}
+  .tok-vb{color:var(--green)}
+  .tok-st{color:var(--orange)}
+  .tok-dt{color:var(--gold)}
+  .tok-nu{color:#b5cea8}
+  .tok-rf{color:var(--blue);font-weight:600}
+  .tok-op{color:var(--red);font-weight:600}
+  .tok-fn{color:var(--gold)}
+
+  /* ---- playground ---- */
+  .play{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.play{grid-template-columns:1fr}}
+  .pane{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .pane .hd{padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px;
+    text-transform:uppercase;letter-spacing:.6px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .dot{width:9px;height:9px;border-radius:50%}
+  #pexlIn{width:100%;height:210px;border:0;resize:vertical;padding:14px;background:transparent;
+    color:var(--fg);font-family:var(--mono);font-size:14px;line-height:1.6;outline:none}
+  #excelOut{margin:0;min-height:210px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{background:var(--panel2);border:1px solid var(--border);border-radius:20px;padding:6px 13px;
+    font-size:13px;cursor:pointer;color:var(--fg)}
+  .chip:hover{border-color:var(--green);color:var(--green)}
+
+  /* ---- tutorial accordion ---- */
+  .acc{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;background:var(--panel)}
+  .acc>summary{cursor:pointer;padding:14px 16px;font-weight:600;list-style:none;display:flex;align-items:center;gap:10px}
+  .acc>summary::-webkit-details-marker{display:none}
+  .acc>summary .n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+    display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+  .acc[open]>summary{border-bottom:1px solid var(--border)}
+  .acc .body{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:820px){.acc .body{grid-template-columns:1fr}}
+  .acc .body .label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px}
+
+  /* ---- comparison + cheat tables ---- */
+  table{width:100%;border-collapse:collapse;font-size:14px;background:var(--panel);
+    border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--panel2);color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.4px}
+  tr:last-child td{border-bottom:0}
+  td code{background:var(--panel2);padding:2px 6px;border-radius:5px;font-size:12.5px}
+  #cheatSearch{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);
+    background:var(--panel);color:var(--fg);font-size:14px;margin-bottom:14px;outline:none}
+  #cheatSearch:focus{border-color:var(--green)}
+
+  /* ---- templates ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .card h4{margin:0 0 4px;font-size:15px}
+  .card p{margin:0;color:var(--muted);font-size:13px}
+  .card .badge{font-size:11px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+
+  /* ---- pipeline ---- */
+  .pipe{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .stage{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;font-weight:600}
+  .stage small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+  .pa{color:var(--green);font-size:22px}
+
+  footer{padding:40px 0;border-top:1px solid var(--border);color:var(--muted);text-align:center;font-size:14px}
+  .copy{float:right;background:transparent;border:1px solid var(--border);color:var(--muted);
+    border-radius:6px;font-size:11px;padding:2px 8px;cursor:pointer}
+  .copy:hover{color:var(--fg)}
+  .copy.ok{color:var(--green);border-color:var(--green)}
+  .cellrow{display:block;position:relative;padding-right:52px}
+  .cellcopy{position:absolute;right:0;top:1px;background:transparent;border:1px solid var(--border);
+    color:var(--muted);border-radius:6px;font-size:10.5px;padding:1px 7px;cursor:pointer;opacity:0;transition:opacity .12s}
+  .cellrow:hover .cellcopy,.cellcopy:focus{opacity:1}
+  .cellcopy:hover{color:var(--fg)}
+  .cellcopy.ok{opacity:1;color:var(--green);border-color:var(--green)}
+  .note{font-size:12.5px;color:var(--muted);margin-top:8px}
+
+  /* ---- glossary ---- */
+  .glosshead{margin:26px 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.7px;
+    color:var(--green);font-weight:700;border-bottom:1px solid var(--border);padding-bottom:6px}
+  .glosshead:first-child{margin-top:0}
+  .gloss{border:1px solid var(--border);border-radius:10px;background:var(--panel);padding:12px 14px;margin-bottom:8px}
+  .gloss .top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .gloss .term{font-family:var(--mono);font-size:14px;color:var(--green);font-weight:600}
+  .gloss .kind{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+    border:1px solid var(--border);border-radius:20px;padding:1px 9px}
+  .gloss .desc{color:var(--fg);font-size:14px;margin:7px 0 0}
+  .gloss .ex{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  @media(max-width:820px){.gloss .ex{grid-template-columns:1fr}}
+  .gloss .ex .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:4px}
+  .gloss .ex pre.code{font-size:12.5px;padding:10px 12px}
+  #glossEmpty{color:var(--muted);padding:14px 0}
+
+  /* ---- add-in guide ---- */
+  .guidegrp{margin:26px 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.7px;
+    color:var(--blue);font-weight:700;border-bottom:1px solid var(--border);padding-bottom:6px}
+  .guiderow{display:grid;grid-template-columns:170px 1fr;gap:14px;padding:11px 2px;border-bottom:1px solid var(--border)}
+  @media(max-width:640px){.guiderow{grid-template-columns:1fr;gap:3px}}
+  .guiderow:last-child{border-bottom:0}
+  .guiderow .gname{font-weight:600;color:var(--fg)}
+  .guiderow .gname small{display:block;color:var(--muted);font-weight:400;font-size:12px;margin-top:2px}
+  .guiderow .gdesc{color:var(--muted);font-size:14px}
+  .guiderow .gdesc code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:12.5px}
+
+  /* ---- hero before/after demo ---- */
+  .herodemo{display:flex;gap:16px;align-items:stretch;justify-content:center;flex-wrap:wrap;margin-top:22px;text-align:left}
+  .herobox{flex:1 1 440px;min-width:0;max-width:560px;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;overflow:hidden;box-shadow:0 10px 34px rgba(0,0,0,.28)}
+  .herolabel{padding:9px 14px;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .herobox pre.code{border:0;border-radius:0;margin:0;white-space:pre-wrap;word-break:break-word;font-size:12.5px;height:100%}
+  .herodemo .arrowbig{align-self:center}
+  @media(max-width:900px){.herodemo .arrowbig{transform:rotate(90deg)}}
+
+  /* ---- SPA routing ---- */
+  nav .links a.active{color:var(--green)}
+  a.logo{cursor:pointer}
+  a.logo:hover{text-decoration:none;opacity:.85}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="logo" href="#home" aria-label="PExL — home">
+    <svg width="108" height="28" viewBox="0 0 108 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="navGrad" x1="0" y1="0" x2="108" y2="28" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#4ec9b0"/><stop offset="1" stop-color="#569cd6"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="1" width="26" height="26" rx="7" fill="url(#navGrad)"/>
+      <rect x="6" y="7" width="3" height="14" rx="1.5" fill="#fff"/>
+      <path d="M13 7 L20 14 L13 21" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="34" y="20" font-family="'Segoe UI',system-ui,sans-serif" font-size="19" font-weight="800" fill="url(#navGrad)">PExL</text>
+    </svg>
+  </a>
+  <div class="links">
+    <a href="#why">Why</a>
+    <a href="#play">Playground</a>
+    <a href="#compare">Before / After</a>
+    <a href="#tutorial">Tutorial</a>
+    <a href="#cheat">Cheat sheet</a>
+    <a href="#glossary">Glossary</a>
+    <a href="#templates">Templates</a>
+    <a href="#guide">Add-in guide</a>
+    <a href="#how">How it works</a>
+    <a href="#faq">FAQ</a>
+  </div>
+  <button class="themeBtn" id="themeBtn">◐ Theme</button>
+</div></nav>
+
+<header class="hero" id="home"><div class="wrap">
+  <h1>PExL</h1>
+  <div class="sub">Plain Excel Language</div>
+  <p class="tag">Write Excel logic the way you think it. PExL transpiles elegant, English-like
+     code into native Excel formulas — no macros, no runtime, just plain formulas.</p>
+  <div class="herodemo">
+    <div class="herobox">
+      <div class="herolabel"><span class="dot" style="background:#569cd6"></span> What you write in Excel today</div>
+      <pre class="code" id="heroExcel"></pre>
+    </div>
+    <span class="arrowbig">→</span>
+    <div class="herobox">
+      <div class="herolabel"><span class="dot" style="background:#4ec9b0"></span> The same logic, in PExL</div>
+      <pre class="code" id="heroPexl"></pre>
+    </div>
+  </div>
+  <div class="cta">
+    <a class="btn primary" href="#play">Try the playground</a>
+    <a class="btn secondary" href="#tutorial">Learn in 5 minutes</a>
+  </div>
+</div></header>
+
+<section id="why"><div class="wrap">
+  <h2>Why PExL?</h2>
+  <p class="lede">Excel has 500+ functions and a syntax that punishes anyone who didn't memorize it.
+     PExL gives you ~35 readable verbs that compile straight to the formulas you already trust.</p>
+  <table>
+    <tr><th>Pain in raw Excel</th><th>With PExL</th></tr>
+    <tr><td>Memorize 500+ function names &amp; argument orders</td><td>~35 readable verbs cover the vast majority of work</td></tr>
+    <tr><td>Cryptic nested formulas nobody can maintain</td><td>Pipelines that read top-to-bottom like sentences</td></tr>
+    <tr><td><code>VLOOKUP</code> vs <code>INDEX/MATCH</code> vs <code>XLOOKUP</code> confusion</td><td>One <code>find … within … thenReturn …</code></td></tr>
+    <tr><td>Repetitive data-wrangling by hand every day</td><td>One-click templates that also teach you the code</td></tr>
+    <tr><td>"What does this formula even do?"</td><td>Your original PExL is saved with the cell</td></tr>
+  </table>
+</div></section>
+
+<section id="play"><div class="wrap">
+  <h2>Live playground</h2>
+  <p class="lede">Type PExL on the left and watch the Excel formula on the right. Click an example to load it.</p>
+  <div class="chips" id="chips"></div>
+  <div class="play">
+    <div class="pane">
+      <div class="hd"><span class="dot" style="background:#4ec9b0"></span> PExL</div>
+      <textarea id="pexlIn" spellcheck="false"></textarea>
+    </div>
+    <div class="pane">
+      <div class="hd"><span class="dot" style="background:#569cd6"></span> Excel formula <button class="copy" id="copyOut">copy</button></div>
+      <pre class="code" id="excelOut"></pre>
+    </div>
+  </div>
+  <p class="note">This runs the <strong>complete PExL compiler</strong> (lexer → parser → emitter) right here in your browser —
+     the same pipeline the add-in ships. Hover a formula to copy it, or grab them all. Zero install, nothing leaves your machine.</p>
+</div></section>
+
+<section id="compare"><div class="wrap">
+  <h2>Before / after</h2>
+  <p class="lede">The formulas you actually dread — deeply nested, easy to break, impossible to read at a glance —
+     next to the PExL that compiles to the very same thing.</p>
+  <div id="compare-list"></div>
+</div></section>
+
+<section id="tutorial"><div class="wrap">
+  <h2>Tutorial</h2>
+  <p class="lede">A five-minute tour. Each step shows PExL and the exact Excel it generates.</p>
+  <div id="tutorial-list"></div>
+</div></section>
+
+<section id="cheat"><div class="wrap">
+  <h2>Cheat sheet</h2>
+  <p class="lede">Search by task, verb, or Excel function.</p>
+  <input id="cheatSearch" placeholder="Filter… e.g. lookup, split, sum, date" />
+  <table id="cheatTable"><thead><tr><th>Category</th><th>PExL</th><th>Excel</th></tr></thead><tbody></tbody></table>
+</div></section>
+
+<section id="glossary"><div class="wrap">
+  <h2>Glossary — the complete reference</h2>
+  <p class="lede">Every symbol, keyword and verb in PExL, each with a plain description and a worked
+     example. Search to jump straight to what you need.</p>
+  <input id="glossSearch" placeholder="Filter… e.g. pipe, lookup, split, date, sumWhere, ::" />
+  <div id="glossList"></div>
+  <div id="glossEmpty" style="display:none">No matches — try another word.</div>
+</div></section>
+
+<section id="templates"><div class="wrap">
+  <h2>One-click templates</h2>
+  <p class="lede">The ribbon offers guided actions for daily chores. Each defaults to a live formula
+     (toggle to paste values) and drops the equivalent PExL into the editor so you learn as you go.</p>
+  <div class="grid" id="templateGrid"></div>
+</div></section>
+
+<section id="guide"><div class="wrap">
+  <h2>Add-in guide — every button & checkbox</h2>
+  <p class="lede">What each control in the editor and the PExL ribbon does. Most ribbon tools act
+     directly on your selection; if they need more input they open the editor seeded with your
+     current cell, and always drop the equivalent PExL in so you learn as you go.</p>
+  <div id="guideList"></div>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <h2>How it works</h2>
+  <p class="lede">A classic compiler pipeline with no Excel dependency in the core — so the whole
+     language is unit-tested in isolation against golden <code>PExL → formula</code> cases.</p>
+  <div class="pipe">
+    <div class="stage">PExL text<small>Monaco editor</small></div><span class="pa">→</span>
+    <div class="stage">Lexer<small>tokens</small></div><span class="pa">→</span>
+    <div class="stage">Parser<small>AST</small></div><span class="pa">→</span>
+    <div class="stage">Emitter<small>=FORMULA()</small></div><span class="pa">→</span>
+    <div class="stage">Cell<small>via COM</small></div>
+  </div>
+  <p class="lede" style="margin-top:24px">It ships as an offline Excel add-in (built on Excel-DNA) with a built-in
+     Monaco editor, so it works inside locked-down corporate environments where modern web add-ins are blocked.
+     PExL only writes standard formulas — recipients never need the add-in, and there's zero recalculation cost.</p>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <h2>FAQ</h2>
+  <div id="faq-list"></div>
+</div></section>
+
+<footer><div class="wrap">
+  Built with a hand-written transpiler in C#. Output is 100% native Excel — open it anywhere.<br/>
+  See <a href="docs/language-spec.md">docs/language-spec.md</a> for the authoritative spec.
+</div></footer>
+
+<script>
+/* ---------------- syntax highlighter for display ---------------- */
+const KW=["if","then","else","return","true","false","empty","within","by","with","thenReturn","from","of","where","ifMissing","inTable","returnColumn","and","or","not","is","check","descending","ascending"];
+const VB=["split","fromLeft","fromRight","at","spill","combine","trim","clean","upper","lower","proper","replace","contains","startsWith","endsWith","length","find","position","ifError","sum","avg","min","max","count","countNum","sumWhere","countWhere","avgWhere","today","now","addDays","addMonths","addYears","yearOf","monthOf","dayOf","weekdayOf","dateDiff","round","abs","sqrt","power","mod","filter","sort","unique","take","col","row","cell","Date","raw","legacy"];
+function esc(s){return s.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
+function hlPexl(src){
+  const lines=src.split("\n").map(line=>{
+    // comments
+    const ci=line.indexOf("//");
+    let code=line, tail="";
+    if(ci>=0){code=line.slice(0,ci);tail='<span class="tok-cm">'+esc(line.slice(ci))+'</span>';}
+    // tokenize the code part
+    let out="", re=/("(?:[^"]|"")*"|`[^`]*`)|(#[^#]*#)|((?:[A-Za-z0-9_]+!)?\$?[A-Za-z]{1,3}\$?[0-9]+(?::\$?[A-Za-z]{1,3}\$?[0-9]+)?)|(\|>|::|->)|(>=|<=|<>|!=|[+\-*/^=<>])|(\b\d+(?:\.\d+)?%?\b)|([A-Za-z_]\w*)|(\s+)|(.)/g, m;
+    while((m=re.exec(code))){
+      if(m[1])out+='<span class="tok-st">'+esc(m[1])+'</span>';
+      else if(m[2])out+='<span class="tok-dt">'+esc(m[2])+'</span>';
+      else if(m[3])out+='<span class="tok-rf">'+esc(m[3])+'</span>';
+      else if(m[4])out+='<span class="tok-op">'+esc(m[4])+'</span>';
+      else if(m[5])out+='<span class="tok-op">'+esc(m[5])+'</span>';
+      else if(m[6])out+='<span class="tok-nu">'+esc(m[6])+'</span>';
+      else if(m[7]){
+        const w=m[7];
+        if(KW.includes(w))out+='<span class="tok-kw">'+w+'</span>';
+        else if(VB.includes(w))out+='<span class="tok-vb">'+w+'</span>';
+        else out+=esc(w);
+      }
+      else out+=esc(m[8]||m[9]||"");
+    }
+    return out+tail;
+  });
+  return lines.join("\n");
+}
+function hlExcel(src){
+  return src.split("\n").map(line=>{
+    // optional "C2:  " cell-target prefix
+    let prefix="", rest=line;
+    const pm=line.match(/^([A-Za-z0-9_!$:]+:)(\s*)(.*)$/);
+    if(pm){prefix='<span class="tok-rf">'+esc(pm[1])+'</span>'+pm[2];rest=pm[3];}
+    let out="", re=/("(?:[^"]|"")*")|(\b[A-Z][A-Z0-9.]*)(?=\()|(\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?)|(\b\d+(?:\.\d+)?\b)|([=+\-*/^,()<>&;:]+)|(\s+)|(.)/g, t;
+    while((t=re.exec(rest))){
+      if(t[1])out+='<span class="tok-st">'+esc(t[1])+'</span>';
+      else if(t[2])out+='<span class="tok-fn">'+esc(t[2])+'</span>';
+      else if(t[3])out+='<span class="tok-rf">'+esc(t[3])+'</span>';
+      else if(t[4])out+='<span class="tok-nu">'+esc(t[4])+'</span>';
+      else if(t[5])out+='<span class="tok-op">'+esc(t[5])+'</span>';
+      else out+=esc(t[6]||t[7]||"");
+    }
+    return prefix+out;
+  }).join("\n");
+}
+
+/* ============ PExL transpiler: faithful client-side port of PExL.Core ============ */
+/* Mirrors the C# Lexer -> Parser -> FormulaEmitter so the browser output matches the add-in. */
+var PExLT = (function(){
+  // ----- registry (StdLib/VerbRegistry) -----
+  var SYN = {
+    split:["divide","separate"], fromLeft:["left","before"], fromRight:["right","after"],
+    at:["piece","nth"], spill:["all","expand"], combine:["join","concat","concatenate","merge"],
+    trim:[], clean:[], upper:["uppercase"], lower:["lowercase"], proper:["titlecase"],
+    replace:["substitute"], contains:["has","includes"], startsWith:["beginsWith"], endsWith:[],
+    length:["len","size"], find:["lookup","search","vlookup","xlookup"], position:["indexOf","match"],
+    ifError:["orElse","onError"], ifs:[], sum:["total"], avg:["average","mean"], min:[], max:[],
+    count:[], countNum:["countNumbers"], sumWhere:["sumIf"], countWhere:["countIf"], avgWhere:["averageIf","avgIf"],
+    today:[], now:[], addDays:[], addMonths:[], addYears:[], yearOf:["year"], monthOf:["month"],
+    dayOf:["day"], weekdayOf:["weekday"], dateDiff:["datedif"], round:[], abs:[], sqrt:[], power:["pow"],
+    mod:["modulo","remainder"], filter:[], sort:[], unique:["distinct"], take:["first"],
+    col:["column"], row:[], cell:[], fixed:["lock","absolute"], "Date":[], raw:["formula"], legacy:[]
+  };
+  var PREP_RAW = { within:"within", inRange:"within", "in":"within", thenReturn:"thenReturn",
+    returnFrom:"thenReturn", bringBack:"thenReturn", getFrom:"thenReturn", "with":"with", by:"by",
+    from:"from", where:"where", ifMissing:"ifMissing", orMissing:"ifMissing", "default":"ifMissing",
+    inTable:"inTable", returnColumn:"returnColumn" };
+  var ALIAS={}, PREP={};
+  Object.keys(SYN).forEach(function(k){ ALIAS[k.toLowerCase()]=k; SYN[k].forEach(function(s){ALIAS[s.toLowerCase()]=k;}); });
+  Object.keys(PREP_RAW).forEach(function(k){ PREP[k.toLowerCase()]=PREP_RAW[k]; });
+  function isVerb(n){ return n!=null && ALIAS.hasOwnProperty(n.toLowerCase()); }
+  function canon(n){ return (n!=null && ALIAS[n.toLowerCase()]) || n; }
+  function isPrep(n){ return n!=null && PREP.hasOwnProperty(n.toLowerCase()); }
+  function canonPrep(n){ return (n!=null && PREP[n.toLowerCase()]) || n; }
+  var FILLER={the:1,value:1,please:1,a:1,an:1}, FLAGS={descending:1,ascending:1};
+  function isFiller(t){ return t!=null && FILLER.hasOwnProperty(t.toLowerCase()); }
+  function isFlag(t){ return t!=null && FLAGS.hasOwnProperty(t.toLowerCase()); }
+
+  function PErr(msg){ this.name="PExLError"; this.message=msg; }
+  PErr.prototype=Object.create(Error.prototype);
+
+  // ----- lexer (Lexing/Lexer.cs) -----
+  var REF=/(?:(?:'[^']+'|[A-Za-z_][A-Za-z0-9_.]*)!)?(?:\$?[A-Za-z]{1,3}\$?[0-9]+(?::\$?[A-Za-z]{1,3}\$?[0-9]+)?|\$?[A-Za-z]{1,3}:\$?[A-Za-z]{1,3}|\$?[0-9]+:\$?[0-9]+)/y;
+  function lex(src){
+    src=src||""; var p=0, n=src.length, toks=[];
+    function isL(c){return /[A-Za-z]/.test(c);} function isD(c){return c>="0"&&c<="9";}
+    function cur(){return p<n?src[p]:"\0";} function pk(k){k=k||1;return p+k<n?src[p+k]:"\0";}
+    function skipTrivia(){
+      while(p<n){ var c=src[p];
+        if(c===" "||c==="\t"||c==="\r"){p++;continue;}
+        if(c==="/"&&src[p+1]==="/"){ while(p<n&&src[p]!=="\n")p++; continue; }
+        break; }
+    }
+    while(true){
+      skipTrivia();
+      if(p>=n){ toks.push({t:"eof",x:""}); break; }
+      var c=src[p];
+      if(c==="\n"){ p++; toks.push({t:"nl",x:"\\n"}); continue; }
+      if(c==="|"&&pk()===">"){p+=2;toks.push({t:"pipe",x:"|>"});continue;}
+      if(c===":"&&pk()===":"){p+=2;toks.push({t:"bind",x:"::"});continue;}
+      if(c==="-"&&pk()===">"){p+=2;toks.push({t:"arrow",x:"->"});continue;}
+      if(c===">"&&pk()==="="){p+=2;toks.push({t:"gte",x:">="});continue;}
+      if(c==="<"&&pk()==="="){p+=2;toks.push({t:"lte",x:"<="});continue;}
+      if(c==="<"&&pk()===">"){p+=2;toks.push({t:"neq",x:"<>"});continue;}
+      if(c==="!"&&pk()==="="){p+=2;toks.push({t:"neq",x:"!="});continue;}
+      if(c==="&"&&pk()==="&"){p+=2;toks.push({t:"id",x:"and"});continue;}
+      if(c==="|"&&pk()==="|"){p+=2;toks.push({t:"id",x:"or"});continue;}
+      if(c==="!"){p++;toks.push({t:"id",x:"not"});continue;}
+      if(c==='"'||c==="`"){ toks.push(scanStr(c)); continue; }
+      if(c==="#"){ toks.push(scanDate()); continue; }
+      if(isL(c)||c==="$"||c==="'"||isD(c)){
+        REF.lastIndex=p; var m=REF.exec(src);
+        if(m&&m.index===p){ p+=m[0].length; toks.push({t:"ref",x:m[0]}); continue; }
+      }
+      if(isD(c)){ toks.push(scanNum()); continue; }
+      if(isL(c)||c==="_"){ toks.push(scanId()); continue; }
+      p++;
+      switch(c){
+        case ".":toks.push({t:"dot",x:"."});continue;
+        case ",":toks.push({t:"comma",x:","});continue;
+        case ":":toks.push({t:"colon",x:":"});continue;
+        case "(":toks.push({t:"lp",x:"("});continue;
+        case ")":toks.push({t:"rp",x:")"});continue;
+        case "+":toks.push({t:"plus",x:"+"});continue;
+        case "-":toks.push({t:"minus",x:"-"});continue;
+        case "*":toks.push({t:"star",x:"*"});continue;
+        case "/":toks.push({t:"slash",x:"/"});continue;
+        case "^":toks.push({t:"caret",x:"^"});continue;
+        case "=":toks.push({t:"eq",x:"="});continue;
+        case ">":toks.push({t:"gt",x:">"});continue;
+        case "<":toks.push({t:"lt",x:"<"});continue;
+      }
+      throw new PErr("Unexpected character '"+c+"'");
+    }
+    function scanStr(q){ p++; var s=""; while(true){ if(p>=n)throw new PErr("Unterminated string");
+      var c=src[p]; if(c===q){ if(q==='"'&&src[p+1]==='"'){s+='"';p+=2;continue;} p++; break; } s+=c; p++; }
+      return {t:"str",x:s}; }
+    function scanDate(){ p++; var s=""; while(p<n&&src[p]!=="#"){s+=src[p];p++;}
+      if(p>=n)throw new PErr("Unterminated date literal"); p++; return {t:"date",x:s}; }
+    function scanNum(){ var s=""; while(isD(cur())){s+=cur();p++;}
+      if(cur()==="."&&isD(pk())){s+=".";p++;while(isD(cur())){s+=cur();p++;}}
+      if(cur()==="e"||cur()==="E"){s+=cur();p++;if(cur()==="+"||cur()==="-"){s+=cur();p++;}while(isD(cur())){s+=cur();p++;}}
+      if(cur()==="%"){s+="%";p++;} return {t:"num",x:s}; }
+    function scanId(){ var s=""; while(/[A-Za-z0-9_]/.test(cur())){s+=cur();p++;} return {t:"id",x:s}; }
+    return toks;
+  }
+
+  // ----- parser (Parsing/Parser.cs) -----
+  function Parser(toks){ this.k=toks; this.i=0; }
+  Parser.prototype.cur=function(){return this.k[this.i];};
+  Parser.prototype.peek=function(n){n=n||1;var j=this.i+n;return j<this.k.length?this.k[j]:this.k[this.k.length-1];};
+  Parser.prototype.is=function(t){return this.cur().t===t;};
+  Parser.prototype.kw=function(w){return this.cur().t==="id"&&this.cur().x===w;};
+  Parser.prototype.eat=function(t,what){ if(this.cur().t!==t)throw new PErr("Expected "+what+" but found '"+this.cur().x+"'"); return this.k[this.i++]; };
+  Parser.prototype.skipNl=function(){ while(this.is("nl"))this.i++; };
+  Parser.prototype.skipFiller=function(){ while(this.cur().t==="id"&&isFiller(this.cur().x))this.i++; };
+  Parser.prototype.parseProgram=function(){
+    var prog=[]; this.skipNl();
+    while(!this.is("eof")){
+      var st=this.parseStatement(); if(st)prog.push(st);
+      if(this.is("nl")||this.is("comma"))this.i++; this.skipNl();
+    }
+    return prog;
+  };
+  Parser.prototype.parseStatement=function(){
+    if(this.kw("check"))return this.parseCheck();
+    var expr=this.parseExpression();
+    var st={expr:expr,bind:null,target:null};
+    if(this.is("bind")){ this.i++; this.skipFiller(); st.bind=this.eat("id","a name after '::'").x; }
+    if(this.is("arrow")){ this.i++; this.skipFiller();
+      if(this.is("ref"))st.target=this.eat("ref","a target after '->'").x;
+      else st.target=this.eat("id","a target after '->'").x; }
+    return st;
+  };
+  Parser.prototype.parseExpression=function(){ if(this.kw("if"))return this.parseIf(); return this.parsePipe(); };
+  Parser.prototype.parsePipe=function(){
+    var left=this.parseOr();
+    while(this.is("pipe")){ this.i++; this.skipFiller();
+      var call=this.parseVerbCall(false); call.positional.unshift(left); left=call; }
+    return left;
+  };
+  Parser.prototype.parseOr=function(){ var l=this.parseAnd();
+    while(this.kw("or")){this.i++;var r=this.parseAnd();l={k:"bin",op:"or",l:l,r:r};} return l; };
+  Parser.prototype.parseAnd=function(){ var l=this.parseComparison();
+    while(this.kw("and")){this.i++;var r=this.parseComparison();l={k:"bin",op:"and",l:l,r:r};} return l; };
+  Parser.prototype.parseComparison=function(){
+    var l=this.parseAdditive();
+    while(true){
+      var op=null,t=this.cur().t;
+      if(t==="eq")op="=";else if(t==="neq")op="<>";else if(t==="gt")op=">";
+      else if(t==="lt")op="<";else if(t==="gte")op=">=";else if(t==="lte")op="<=";
+      if(op){this.i++;var r=this.parseAdditive();l={k:"bin",op:op,l:l,r:r};continue;}
+      if(this.kw("is")){ this.i++; var o="="; if(this.kw("not")){this.i++;o="<>";}
+        var r2=this.parseAdditive(); l={k:"bin",op:o,l:l,r:r2}; continue; }
+      if(this.cur().t==="id"&&/^(contains|startswith|endswith)$/.test(this.cur().x.toLowerCase())){
+        var verb=canon(this.cur().x); this.i++; var r3=this.parseAdditive();
+        l={k:"verb",verb:verb,modifier:null,positional:[l,r3],named:[]}; continue; }
+      break;
+    }
+    return l;
+  };
+  Parser.prototype.parseAdditive=function(){ var l=this.parseMul();
+    while(this.is("plus")||this.is("minus")){var op=this.is("plus")?"+":"-";this.i++;var r=this.parseMul();l={k:"bin",op:op,l:l,r:r};} return l; };
+  Parser.prototype.parseMul=function(){ var l=this.parsePow();
+    while(this.is("star")||this.is("slash")){var op=this.is("star")?"*":"/";this.i++;var r=this.parsePow();l={k:"bin",op:op,l:l,r:r};} return l; };
+  Parser.prototype.parsePow=function(){ var l=this.parseUnary();
+    if(this.is("caret")){this.i++;var r=this.parsePow();return {k:"bin",op:"^",l:l,r:r};} return l; };
+  Parser.prototype.parseUnary=function(){
+    if(this.is("minus")){this.i++;return {k:"un",op:"-",operand:this.parseUnary()};}
+    if(this.kw("not")){this.i++;return {k:"un",op:"not",operand:this.parseUnary()};}
+    return this.parsePrimary();
+  };
+  Parser.prototype.parsePrimary=function(){
+    this.skipFiller(); var tok=this.cur();
+    switch(tok.t){
+      case "num": this.i++; return {k:"num",raw:tok.x};
+      case "str": this.i++; return {k:"str",value:tok.x};
+      case "date": this.i++; return {k:"date",raw:tok.x};
+      case "ref": this.i++; return {k:"ref",text:tok.x};
+      case "lp": this.i++; var inner=this.parseExpression(); this.eat("rp","')'"); return inner;
+      case "id":
+        if(tok.x==="if")return this.parseIf();
+        if(tok.x==="true"){this.i++;return {k:"bool",value:true};}
+        if(tok.x==="false"){this.i++;return {k:"bool",value:false};}
+        if(tok.x==="empty"){this.i++;return {k:"empty"};}
+        if(isVerb(tok.x)||this.peek().t==="lp"||this.peek().t==="dot")return this.parseVerbCall(true);
+        this.i++; return {k:"name",name:tok.x};
+      default: throw new PErr("Unexpected token '"+tok.x+"'");
+    }
+  };
+  Parser.prototype.parseVerbCall=function(allowBare){
+    var nameTok=this.eat("id","a verb");
+    var call={k:"verb",verb:canon(nameTok.x),modifier:null,positional:[],named:[]};
+    if(this.is("dot")){ this.i++; call.modifier=this.eat("id","a modifier after '.'").x; }
+    if(this.is("lp")){ this.i++;
+      if(!this.is("rp")){ call.positional.push(this.parseExpression());
+        while(this.is("comma")){this.i++;call.positional.push(this.parseExpression());} }
+      this.eat("rp","')'"); }
+    while(true){
+      if(this.is("dot")&&this.peek().t==="id"){ this.i++;
+        var label=this.eat("id","a method name").x; var val;
+        if(this.is("lp")){this.i++; val=this.is("rp")?{k:"empty"}:this.parseExpression(); this.eat("rp","')'");}
+        else val={k:"bool",value:true};
+        call.named.push({label:canonPrep(label),value:val}); continue; }
+      if(this.cur().t==="id"){
+        if(isPrep(this.cur().x)){ var lab=canonPrep(this.cur().x); this.i++; var v2;
+          if(this.is("lp")){this.i++;v2=this.is("rp")?{k:"empty"}:this.parseExpression();this.eat("rp","')'");}
+          else v2=this.parseOr();
+          call.named.push({label:lab,value:v2}); continue; }
+        if(isFlag(this.cur().x)){ var fl=this.cur().x.toLowerCase(); this.i++;
+          call.named.push({label:fl,value:{k:"bool",value:true}}); continue; }
+      }
+      if(allowBare&&this.startsAtom()){ call.positional.push(this.parseOr()); continue; }
+      break;
+    }
+    return call;
+  };
+  Parser.prototype.startsAtom=function(){
+    var t=this.cur().t;
+    if(t==="num"||t==="str"||t==="date"||t==="ref"||t==="lp")return true;
+    if(t==="id"){ var x=this.cur().x;
+      if(isFiller(x))return true;
+      if(isPrep(x))return false;
+      if(x==="and"||x==="or"||x==="then"||x==="else"||x==="is")return false;
+      return true; }
+    return false;
+  };
+  Parser.prototype.parseIf=function(){
+    this.eat("id","'if'"); var cond=this.parseOr();
+    if(!this.kw("then"))throw new PErr("Expected 'then' in if-expression"); this.i++;
+    var thenE=this.parseOr(); var elseE=null;
+    if(this.kw("else")){this.i++;elseE=this.parseOr();}
+    return {k:"if",cond:cond,then:thenE,else:elseE};
+  };
+  Parser.prototype.lineHasThen=function(){
+    for(var j=this.i;j<this.k.length;j++){ var t=this.k[j];
+      if(t.t==="nl"||t.t==="eof"||t.t==="arrow"||t.t==="bind")return false;
+      if(t.t==="id"&&t.x==="then")return true; }
+    return false;
+  };
+  Parser.prototype.branchAhead=function(){
+    if(this.kw("else")||this.is("arrow")||this.is("bind")||this.is("eof"))return false;
+    if(this.kw("if"))return true;
+    return this.lineHasThen();
+  };
+  Parser.prototype.parseCheck=function(){
+    this.eat("id","'check'"); this.skipNl();
+    var subject=null, pending=null;
+    if(this.is("colon")){ this.i++; }
+    else if(!this.kw("if")&&!this.kw("else")&&!this.is("arrow")&&!this.is("bind")&&!this.is("eof")){
+      var e=this.parseOr();
+      if(this.is("colon")){ subject=e; this.i++; }
+      else if(this.kw("then")){ pending=e; }
+      else { subject=e; }
+    }
+    this.skipNl();
+    var ifs={k:"verb",verb:"ifs",modifier:null,positional:[],named:[]};
+    while(true){
+      if(pending===null){ this.skipNl(); if(!this.branchAhead())break; if(this.kw("if"))this.i++; }
+      var cond=pending!==null?pending:this.parseBranchCondition(subject); pending=null;
+      if(!this.kw("then"))throw new PErr("Expected 'then' in a check branch"); this.i++;
+      var result=this.parseOr(); ifs.positional.push(cond); ifs.positional.push(result); this.skipNl();
+    }
+    if(this.kw("else")){ this.i++; ifs.named.push({label:"else",value:this.parseOr()}); this.skipNl(); }
+    var st={expr:ifs,bind:null,target:null};
+    if(this.is("bind")){ this.i++; this.skipFiller(); st.bind=this.eat("id","a name after '::'").x; }
+    if(this.is("arrow")){ this.i++; this.skipFiller();
+      if(this.is("ref"))st.target=this.eat("ref","a target after '->'").x;
+      else st.target=this.eat("id","a target after '->'").x; }
+    return st;
+  };
+  Parser.prototype.parseBranchCondition=function(subject){
+    var op=null,t=this.cur().t;
+    if(t==="eq")op="=";else if(t==="neq")op="<>";else if(t==="gt")op=">";
+    else if(t==="lt")op="<";else if(t==="gte")op=">=";else if(t==="lte")op="<=";
+    if(op&&subject){this.i++;var rhs=this.parseAdditive();return {k:"bin",op:op,l:subject,r:rhs};}
+    if(subject&&this.cur().t==="id"&&/^(contains|startswith|endswith)$/.test(this.cur().x.toLowerCase())){
+      var verb=canon(this.cur().x);this.i++;var a=this.parseAdditive();
+      return {k:"verb",verb:verb,modifier:null,positional:[subject,a],named:[]};}
+    return this.parseOr();
+  };
+
+  // ----- emitter (Emit/FormulaEmitter.cs) -----
+  function Emitter(){ this.binds={}; }
+  function R(f){return {f:f,split:null};}
+  function S(src,delim,strat){return {f:"TEXTSPLIT("+src+","+delim+")",split:{source:src,delimiter:delim,strategy:strat}};}
+  function eqi(a,b){return a!=null&&a.toLowerCase()===b.toLowerCase();}
+  function quote(v){return '"'+v.replace(/"/g,'""')+'"';}
+  function dateFrom(raw){ var ps=raw.trim().split(/[-\/.]+/).filter(Boolean);
+    if(ps.length===3&&/^\d+$/.test(ps[0])&&/^\d+$/.test(ps[1])&&/^\d+$/.test(ps[2]))
+      return "DATE("+parseInt(ps[0],10)+","+parseInt(ps[1],10)+","+parseInt(ps[2],10)+")";
+    throw new PErr("Cannot parse date '"+raw+"'. Use ISO form like #2024-01-31#."); }
+  function prec(op){ if(op==="^")return 4; if(op==="*"||op==="/")return 3; if(op==="+"||op==="-")return 2; return 1; }
+  Emitter.prototype.bind=function(name,expr){ this.binds[name.toLowerCase()]=expr; };
+  Emitter.prototype.named=function(c,label){ for(var i=0;i<c.named.length;i++)if(c.named[i].label===label)return c.named[i].value; return null; };
+  Emitter.prototype.emit=function(e){
+    switch(e.k){
+      case "num": return R(e.raw);
+      case "str": return R(quote(e.value));
+      case "bool": return R(e.value?"TRUE":"FALSE");
+      case "empty": return R('""');
+      case "date": return R(dateFrom(e.raw));
+      case "ref": return R(e.text);
+      case "name": { var b=this.binds[e.name.toLowerCase()]; if(b===undefined)throw new PErr("Unknown name '"+e.name+"'. Did you bind it with '::' first?"); return this.emit(b); }
+      case "un": return this.emitUnary(e);
+      case "bin": return this.emitBinary(e);
+      case "if": return this.emitIf(e);
+      case "verb": return this.emitVerb(e);
+      default: throw new PErr("Cannot emit unknown node");
+    }
+  };
+  Emitter.prototype.paren=function(child,childF,parentPrec){
+    if(child.k==="bin"&&child.op!=="and"&&child.op!=="or"&&prec(child.op)<parentPrec)return "("+childF+")";
+    return childF;
+  };
+  Emitter.prototype.emitUnary=function(u){ var inner=this.emit(u.operand).f;
+    if(u.op==="not")return R("NOT("+inner+")"); return R("-"+this.paren(u.operand,inner,100)); };
+  Emitter.prototype.emitBinary=function(b){
+    if(b.op==="and"||b.op==="or"){ var fn=b.op==="and"?"AND":"OR";
+      return R(fn+"("+this.emit(b.l).f+","+this.emit(b.r).f+")"); }
+    var p=prec(b.op);
+    var l=this.paren(b.l,this.emit(b.l).f,p);
+    var r=this.paren(b.r,this.emit(b.r).f,p+1);
+    return R(l+b.op+r);
+  };
+  Emitter.prototype.emitIf=function(f){ var c=this.emit(f.cond).f, t=this.emit(f.then).f;
+    if(f.else==null)return R("IF("+c+","+t+")"); return R("IF("+c+","+t+","+this.emit(f.else).f+")"); };
+  Emitter.prototype.arg=function(c,i){ if(i>=c.positional.length)throw new PErr("'"+c.verb+"' is missing argument #"+(i+1)); return this.emit(c.positional[i]).f; };
+  Emitter.prototype.fn=function(name,c){ var self=this; return R(name+"("+c.positional.map(function(a){return self.emit(a).f;}).join(",")+")"); };
+  Emitter.prototype.emitVerb=function(c){
+    var v=c.verb, self=this;
+    switch(v){
+      case "split": { var strat=eqi(c.modifier,"First")?"First":eqi(c.modifier,"Last")?"Last":"All"; return S(this.arg(c,0),this.arg(c,1),strat); }
+      case "fromLeft": return this.emitFromSide(c,true);
+      case "fromRight": return this.emitFromSide(c,false);
+      case "at": { var inp=this.emit(c.positional[0]); var idx=this.emit(c.positional[1]).f; var arr=inp.split?("TEXTSPLIT("+inp.split.source+","+inp.split.delimiter+")"):inp.f; return R("INDEX("+arr+","+idx+")"); }
+      case "spill": { var ip=this.emit(c.positional[0]); return R(ip.split?("TEXTSPLIT("+ip.split.source+","+ip.split.delimiter+")"):ip.f); }
+      case "combine": { var sepE=this.named(c,"with"); var sep=sepE?this.emit(sepE).f:'""'; return R("TEXTJOIN("+sep+",TRUE,"+c.positional.map(function(a){return self.emit(a).f;}).join(",")+")"); }
+      case "trim": return this.fn("TRIM",c);
+      case "clean": return this.fn("CLEAN",c);
+      case "upper": return this.fn("UPPER",c);
+      case "lower": return this.fn("LOWER",c);
+      case "proper": return this.fn("PROPER",c);
+      case "replace": return this.emitReplace(c);
+      case "contains": { var seek=eqi(c.modifier,"caseSensitive")?"FIND":"SEARCH"; return R("ISNUMBER("+seek+"("+this.arg(c,1)+","+this.arg(c,0)+"))"); }
+      case "startsWith": return this.emitEdge(c,true);
+      case "endsWith": return this.emitEdge(c,false);
+      case "length": return this.fn("LEN",c);
+      case "find": return this.emitFind(c);
+      case "position": { var range=this.named(c,"within")?this.emit(this.named(c,"within")).f:this.arg(c,1); return R("MATCH("+this.arg(c,0)+","+range+",0)"); }
+      case "ifError": return this.fn("IFERROR",c);
+      case "ifs": return this.emitIfs(c);
+      case "sum": return this.emitAgg(c,"SUM",9);
+      case "avg": return this.emitAgg(c,"AVERAGE",1);
+      case "min": return this.emitAgg(c,"MIN",5);
+      case "max": return this.emitAgg(c,"MAX",4);
+      case "count": return this.emitAgg(c,"COUNTA",3);
+      case "countNum": return this.emitAgg(c,"COUNT",2);
+      case "sumWhere": return this.emitWhere(c,"SUMIFS",true);
+      case "countWhere": return this.emitWhere(c,"COUNTIFS",false);
+      case "avgWhere": return this.emitWhere(c,"AVERAGEIFS",true);
+      case "today": return R("TODAY()");
+      case "now": return R("NOW()");
+      case "addDays": return R(this.arg(c,0)+"+"+this.arg(c,1));
+      case "addMonths": return R("EDATE("+this.arg(c,0)+","+this.arg(c,1)+")");
+      case "addYears": { var d=this.arg(c,0); var yexpr=c.positional[1];
+        if(yexpr&&yexpr.k==="num"&&/^\d+$/.test(yexpr.raw))return R("EDATE("+d+","+(parseInt(yexpr.raw,10)*12)+")");
+        return R("EDATE("+d+",("+this.arg(c,1)+")*12)"); }
+      case "yearOf": return this.fn("YEAR",c);
+      case "monthOf": return this.fn("MONTH",c);
+      case "dayOf": return this.fn("DAY",c);
+      case "weekdayOf": return this.fn("WEEKDAY",c);
+      case "dateDiff": { var u='"d"'; if(eqi(c.modifier,"months"))u='"m"'; else if(eqi(c.modifier,"years"))u='"y"'; return R("DATEDIF("+this.arg(c,0)+","+this.arg(c,1)+","+u+")"); }
+      case "round": { var f="ROUND"; if(eqi(c.modifier,"up"))f="ROUNDUP"; else if(eqi(c.modifier,"down"))f="ROUNDDOWN"; return R(f+"("+this.arg(c,0)+","+this.arg(c,1)+")"); }
+      case "abs": return this.fn("ABS",c);
+      case "sqrt": return this.fn("SQRT",c);
+      case "power": return this.fn("POWER",c);
+      case "mod": return this.fn("MOD",c);
+      case "filter": { var rng=this.arg(c,0); var cnd=this.named(c,"where")||(c.positional.length>1?c.positional[1]:null); if(!cnd)throw new PErr("'filter' needs a where condition"); return R("FILTER("+rng+","+this.emit(cnd).f+")"); }
+      case "sort": return this.emitSort(c);
+      case "unique": return this.fn("UNIQUE",c);
+      case "take": return this.fn("TAKE",c);
+      case "col": { if(c.positional[0].k==="str")return R(c.positional[0].value+":"+c.positional[0].value); var cf=this.emit(c.positional[0]).f; return R(cf+":"+cf); }
+      case "row": { var rf=this.arg(c,0); return R(rf+":"+rf); }
+      case "cell": { var cp=c.positional[0].k==="str"?c.positional[0].value:this.emit(c.positional[0]).f; var rp=c.positional[1].k==="num"?c.positional[1].raw:this.emit(c.positional[1]).f; return R(cp+rp); }
+      case "fixed": { if(c.positional[0].k==="ref")return R(absolutize(c.positional[0].text)); return R(this.emit(c.positional[0]).f); }
+      case "Date": { if(c.positional.length>0&&c.positional[0].k==="str")return R(dateFrom(c.positional[0].value)); throw new PErr('Date(...) expects a date string like Date("2024-01-01")'); }
+      case "raw": { if(c.positional.length===0||c.positional[0].k!=="str")throw new PErr('raw(...) expects a function name first, e.g. raw("SUMPRODUCT", ...)'); var fn=c.positional[0].value.toUpperCase(); return R(fn+"("+c.positional.slice(1).map(function(a){return self.emit(a).f;}).join(",")+")"); }
+      case "legacy": { if(!c.modifier)throw new PErr("legacy.* expects a function, e.g. legacy.vlookup(...)"); var name=c.modifier.toUpperCase(); var args=c.positional.map(function(a){return self.emit(a).f;}); if((name==="VLOOKUP"||name==="HLOOKUP")&&args.length===3)args.push("FALSE"); return R(name+"("+args.join(",")+")"); }
+      default: throw new PErr("Unknown verb '"+c.verb+"'. Use raw(\""+c.verb.toUpperCase()+"\", ...) to call an Excel function directly.");
+    }
+  };
+  Emitter.prototype.emitFromSide=function(c,before){
+    var input=this.emit(c.positional[0]);
+    if(input.split){ var s=input.split; var fn=before?"TEXTBEFORE":"TEXTAFTER";
+      var last=s.strategy==="Last"||(s.strategy==="All"&&!before);
+      return R(last?(fn+"("+s.source+","+s.delimiter+",-1)"):(fn+"("+s.source+","+s.delimiter+")")); }
+    var text=input.f; var delim=c.positional.length>1?this.emit(c.positional[1]).f:'" "';
+    var fn2=before?"TEXTBEFORE":"TEXTAFTER"; var useLast=eqi(c.modifier,"last");
+    return R(useLast?(fn2+"("+text+","+delim+",-1)"):(fn2+"("+text+","+delim+")"));
+  };
+  Emitter.prototype.emitReplace=function(c){
+    if(eqi(c.modifier,"nth"))return R("SUBSTITUTE("+this.arg(c,1)+","+this.arg(c,2)+","+this.arg(c,3)+","+this.arg(c,0)+")");
+    if(eqi(c.modifier,"first"))return R("SUBSTITUTE("+this.arg(c,0)+","+this.arg(c,1)+","+this.arg(c,2)+",1)");
+    if(eqi(c.modifier,"last")){ var t=this.arg(c,0),f=this.arg(c,1),w=this.arg(c,2);
+      return R("SUBSTITUTE("+t+","+f+","+w+",(LEN("+t+")-LEN(SUBSTITUTE("+t+","+f+',"")))/LEN('+f+"))"); }
+    return R("SUBSTITUTE("+this.arg(c,0)+","+this.arg(c,1)+","+this.arg(c,2)+")");
+  };
+  Emitter.prototype.emitEdge=function(c,start){
+    var text=this.arg(c,0); var probe=c.positional[1];
+    var lenExpr=probe.k==="str"?String(probe.value.length):("LEN("+this.emit(probe).f+")");
+    var probeF=this.emit(probe).f; var fn=start?"LEFT":"RIGHT";
+    return R(fn+"("+text+","+lenExpr+")="+probeF);
+  };
+  Emitter.prototype.emitFind=function(c){
+    var lookup=this.arg(c,0); var la,ra;
+    var table=this.named(c,"inTable");
+    if(table){ var t=this.emit(table).f; var colE=this.named(c,"returnColumn"); var col=colE?this.emit(colE).f:"2";
+      la="INDEX("+t+",0,1)"; ra="INDEX("+t+",0,"+col+")"; }
+    else { la=this.named(c,"within")?this.emit(this.named(c,"within")).f:this.arg(c,1);
+      ra=this.named(c,"thenReturn")?this.emit(this.named(c,"thenReturn")).f:this.arg(c,2); }
+    var ifMissing=this.named(c,"ifMissing"); var matchMode=null,searchMode=null;
+    if(eqi(c.modifier,"wildcard"))matchMode="2"; else if(eqi(c.modifier,"approx"))matchMode="-1"; else if(eqi(c.modifier,"reverse"))searchMode="-1";
+    var parts=[lookup,la,ra];
+    if(searchMode!=null){ parts.push(ifMissing?this.emit(ifMissing).f:'""'); parts.push(matchMode||"0"); parts.push(searchMode); }
+    else if(matchMode!=null){ parts.push(ifMissing?this.emit(ifMissing).f:'""'); parts.push(matchMode); }
+    else if(ifMissing){ parts.push(this.emit(ifMissing).f); }
+    return R("XLOOKUP("+parts.join(",")+")");
+  };
+  Emitter.prototype.emitIfs=function(c){
+    var parts=[];
+    for(var i=0;i+1<c.positional.length;i+=2){ parts.push(this.emit(c.positional[i]).f); parts.push(this.emit(c.positional[i+1]).f); }
+    var elseE=this.named(c,"else"); if(elseE){ parts.push("TRUE"); parts.push(this.emit(elseE).f); }
+    return R("IFS("+parts.join(",")+")");
+  };
+  Emitter.prototype.emitAgg=function(c,name,aggFn){
+    if(eqi(c.modifier,"ignoreErrors"))return R("AGGREGATE("+aggFn+",6,"+this.arg(c,0)+")");
+    return this.fn(name,c);
+  };
+  Emitter.prototype.flattenAnd=function(e,out){
+    if(e.k==="bin"&&e.op==="and"){ this.flattenAnd(e.l,out); this.flattenAnd(e.r,out); } else out.push(e);
+  };
+  Emitter.prototype.buildCriteria=function(op,value){
+    var isLit=value.k==="str"||value.k==="num"||value.k==="bool";
+    if(isLit){ var text=value.k==="str"?value.value:value.k==="num"?value.raw:(value.value?"TRUE":"FALSE");
+      if(op==="=")return value.k==="num"?text:quote(text); return quote(op+text); }
+    var f=this.emit(value).f; return op==="="?f:(quote(op)+"&"+f);
+  };
+  Emitter.prototype.emitWhere=function(c,name,hasValueRange){
+    var parts=[]; var condIndex=0;
+    if(hasValueRange){ parts.push(this.arg(c,0)); condIndex=1; }
+    var cond=this.named(c,"where")||(condIndex<c.positional.length?c.positional[condIndex]:null);
+    if(!cond)throw new PErr("'"+c.verb+"' needs a condition");
+    var flat=[]; this.flattenAnd(cond,flat);
+    for(var i=0;i<flat.length;i++){ var cmp=flat[i];
+      if(cmp.k==="bin"&&cmp.op!=="and"&&cmp.op!=="or"){ parts.push(this.emit(cmp.l).f); parts.push(this.buildCriteria(cmp.op,cmp.r)); }
+      else throw new PErr("'"+c.verb+"' conditions must be comparisons joined by 'and'"); }
+    return R(name+"("+parts.join(",")+")");
+  };
+  Emitter.prototype.emitSort=function(c){
+    var range=this.arg(c,0); var byE=this.named(c,"by"); var desc=this.named(c,"descending")!=null;
+    if(!byE&&c.positional.length>1)byE=c.positional[1];
+    if(!byE)return R("SORT("+range+")");
+    var by=this.emit(byE).f; return R(desc?("SORT("+range+","+by+",-1)"):("SORT("+range+","+by+")"));
+  };
+  function absolutize(a1){
+    var bang=a1.lastIndexOf("!"); var sheet=bang>=0?a1.slice(0,bang+1):""; var body=bang>=0?a1.slice(bang+1):a1;
+    var outp=sheet; var first=true;
+    body.split(":").forEach(function(part){ if(!first)outp+=":"; outp+=absCell(part); first=false; });
+    return outp;
+  }
+  function absCell(cell){ var s="",i=0; if(cell[i]==="$")i++; s+="$";
+    while(i<cell.length&&/[A-Za-z]/.test(cell[i])){s+=cell[i];i++;}
+    if(cell[i]==="$")i++; s+="$"; while(i<cell.length&&/[0-9]/.test(cell[i])){s+=cell[i];i++;} return s; }
+
+  // ----- facade (Transpiler.cs) -----
+  function transpile(code){
+    var toks=lex(code); var prog=new Parser(toks).parseProgram(); var em=new Emitter(); var cells=[];
+    prog.forEach(function(st){
+      if(st.bind!=null)em.bind(st.bind,st.expr);
+      if(st.target!=null){ cells.push({target:st.target,formula:em.emit(st.expr).f}); }
+      else if(st.bind==null){ cells.push({target:null,formula:em.emit(st.expr).f}); }
+    });
+    return cells;
+  }
+  return { transpile: transpile };
+})();
+function transpile(code){ return PExLT.transpile(code); }
+
+let LAST_CELLS=[];
+function renderOut(code){
+  const out=document.getElementById("excelOut");
+  let cells;
+  try{ cells=transpile(code); }
+  catch(e){ LAST_CELLS=[]; out.innerHTML='<span style="color:var(--red)">'+esc(e.message||"Parse error")+'</span>'; return; }
+  LAST_CELLS=cells;
+  if(!cells.length){out.innerHTML='<span class="tok-cm">Write PExL on the left…</span>';return;}
+  out.innerHTML=cells.map((c,i)=>{
+    const f="="+c.formula;
+    const label=c.target?'<span class="tok-rf">'+esc(c.target)+'</span>:  ':'';
+    return '<span class="cellrow">'+label+hlExcel(f)+
+      '<button class="cellcopy" data-i="'+i+'" title="Copy this formula">copy</button></span>';
+  }).join("\n");
+}
+function cellText(c){ return (c.target?c.target+":  ":"")+"="+c.formula; }
+function flash(btn,label){ const o=btn.textContent; btn.textContent=label||"copied"; btn.classList.add("ok");
+  setTimeout(()=>{btn.textContent=o;btn.classList.remove("ok");},1100); }
+
+/* ---------------- data ---------------- */
+const EXAMPLES=[
+  {name:"Split to columns", pexl:'B2 |> split.First("-") :: parts\nparts |> fromLeft  -> C2\nparts |> fromRight -> D2'},
+  {name:"Clean a column", pexl:'A2 |> replace("_", " ") |> trim |> proper -> B2'},
+  {name:"Lookup", pexl:'find D2 within A1:A100 thenReturn B1:B100 ifMissing "N/A" -> E2'},
+  {name:"Conditional", pexl:'if B2 > 10 then "High" else "Low" -> C2'},
+  {name:"Sum where", pexl:'sumWhere(A1:A10, C1:C10 = "West") -> F2'},
+  {name:"Combine", pexl:'combine(A2, B2) with(" ") -> C2'},
+  {name:"Escape hatch", pexl:'raw("SUMPRODUCT", A1:A10, B1:B10) -> D2'}
+];
+const TUTORIAL=[
+  {t:"The pipe: |>", d:"Feeds a value into the next step as its first argument. Read it as “then”.",
+   p:'B2 |> trim |> upper', x:'=UPPER(TRIM(B2))'},
+  {t:"Output: ->", d:"Writes the result into a cell. It only ever means “put it here”.",
+   p:'B2 |> upper -> C2', x:'C2:  =UPPER(B2)'},
+  {t:"Naming a result: ::", d:"Captures a value under a name so you can reuse it on later lines.",
+   p:'B2 |> split.First("-") :: parts\nparts |> fromLeft  -> C2\nparts |> fromRight -> D2',
+   x:'C2:  =TEXTBEFORE(B2,"-")\nD2:  =TEXTAFTER(B2,"-")'},
+  {t:"Looking things up", d:"Forget VLOOKUP. One verb that reads like English.",
+   p:'find D2 within A1:A100 thenReturn B1:B100 ifMissing "N/A" -> E2', x:'=XLOOKUP(D2,A1:A100,B1:B100,"N/A")'},
+  {t:"Conditionals", d:"Plain if / then / else, plus multi-branch check without nested IFs.",
+   p:'check\n  B2 >= 90 then "A"\n  B2 >= 80 then "B"\n  else "C"\n-> D2', x:'=IFS(B2>=90,"A",B2>=80,"B",TRUE,"C")'},
+  {t:"Conditional sums", d:"Readable SUMIFS — list your conditions naturally.",
+   p:'sumWhere(A1:A10, B1:B10 > 100 and C1:C10 = "West")', x:'=SUMIFS(A1:A10,B1:B10,">100",C1:C10,"West")'},
+  {t:"The escape hatch", d:"Any of Excel’s other ~460 functions are one call away.",
+   p:'raw("SUMPRODUCT", A1:A10, B1:B10)\nlegacy.vlookup(D2, A1:B100, 2)', x:'=SUMPRODUCT(A1:A10,B1:B10)\n=VLOOKUP(D2,A1:B100,2,FALSE)'}
+];
+const COMPARE=[
+  {title:"Grade buckets — five nested IFs",
+   excel:'=IF(B2>=90,"A",IF(B2>=80,"B",IF(B2>=70,"C",IF(B2>=60,"D","F"))))',
+   pexl:'check\n  B2 >= 90 then "A"\n  B2 >= 80 then "B"\n  B2 >= 70 then "C"\n  B2 >= 60 then "D"\n  else "F"\n-> C2'},
+  {title:"Safe lookup with fallback — IFERROR wrapping VLOOKUP",
+   excel:'=IFERROR(VLOOKUP(A2,Sheet2!$A$2:$D$500,4,FALSE),"Not found")',
+   pexl:'find A2 within Sheet2!A:A thenReturn Sheet2!D:D ifMissing "Not found" -> B2'},
+  {title:"Normalize a messy column — four functions deep",
+   excel:'=PROPER(TRIM(CLEAN(SUBSTITUTE(A2,"_"," "))))',
+   pexl:'A2 |> replace("_", " ") |> clean |> trim |> proper -> B2'},
+  {title:"Multi-criteria conditional total — SUMIFS with date math",
+   excel:'=SUMIFS(Sales!C:C,Sales!A:A,">="&DATE(2024,1,1),\n        Sales!A:A,"<="&DATE(2024,12,31),Sales!B:B,"West")',
+   pexl:'sumWhere(Sales!C:C,\n  Sales!A:A >= #2024-01-01#,\n  Sales!A:A <= #2024-12-31#,\n  Sales!B:B = "West") -> F2'},
+  {title:"Extract a domain, then classify it",
+   excel:'=IF(RIGHT(TEXTAFTER(A2,"@"),4)=".com","external","internal")',
+   pexl:'A2 |> split.Last("@") :: domain\nif domain endsWith ".com" then "external" else "internal" -> B2'},
+  {title:"Top-3 sellers — sort, then take, in one breath",
+   excel:'=TAKE(SORT(A2:B1000,2,-1),3)',
+   pexl:'take(sort(A2:B1000 by B2:B1000 descending), 3) -> D2'}
+];
+const CHEAT=[
+  ["Lookup","find x within R thenReturn S","XLOOKUP(x,R,S)"],
+  ["Position","position x within R","MATCH(x,R,0)"],
+  ["Split","t |> split.First(\"-\") |> fromLeft","TEXTBEFORE(t,\"-\")"],
+  ["Join","combine(A,B) with(\"-\")","TEXTJOIN(\"-\",TRUE,A,B)"],
+  ["Clean","t |> trim |> proper","PROPER(TRIM(t))"],
+  ["Contains","t contains \"x\"","ISNUMBER(SEARCH(\"x\",t))"],
+  ["If","if c then a else b","IF(c,a,b)"],
+  ["Multi-if","check x: >9 then \"A\" else \"B\"","IFS(x>9,\"A\",TRUE,\"B\")"],
+  ["Error","expr |> ifError(\"-\")","IFERROR(expr,\"-\")"],
+  ["Sum-if","sumWhere(A, B > 100)","SUMIFS(A,B,\">100\")"],
+  ["Count","count(A) / countNum(A)","COUNTA(A) / COUNT(A)"],
+  ["Filter","filter(R where B > 100)","FILTER(R,B>100)"],
+  ["Unique","unique(R)","UNIQUE(R)"],
+  ["Sort","sort(R by K descending)","SORT(R,1,-1)"],
+  ["Date add","addMonths(A2, 3)","EDATE(A2,3)"],
+  ["Date diff","dateDiff(A2, today(), \"y\")","DATEDIF(A2,TODAY(),\"y\")"],
+  ["Round","round(A2, 2)","ROUND(A2,2)"],
+  ["Anything","raw(\"FUNC\", ...)","=FUNC(...)"]
+];
+const TEMPLATES=[
+  ["Text","Split to Columns","Break a column on a delimiter into separate columns."],
+  ["Text","Combine Columns","Join columns with a separator."],
+  ["Text","Trim & Clean","Strip stray spaces and nonprintable characters."],
+  ["Text","Proper Case","Title-case names after trimming."],
+  ["Shape","Remove Duplicates","Distinct values from a column."],
+  ["Shape","Sort By","Sort a table by a key column."],
+  ["Shape","Filter Rows","Keep only rows matching a condition."],
+  ["Shape","Fill Blanks Down","Carry the value above into blank cells."],
+  ["Logic","Lookup Builder","XLOOKUP across sheets with a fallback."],
+  ["Logic","If / Check","Multi-branch logic without nested IFs."],
+  ["Logic","Safe Divide","Divide, showing a dash instead of #DIV/0!."],
+  ["Summarize","Quick Stats","Count, sum, average, min, max in one click."],
+  ["Summarize","Sum Where","Conditional totals (SUMIFS)."],
+  ["Summarize","Pivot Generator","Wizard: group-by + aggregation → spilled summary."],
+  ["Dates","Date Picker","Pick a date on a calendar; inserts a date literal."],
+  ["Dates","Years Between","Whole years between a date and today."]
+];
+const FAQ=[
+  ["Do recipients need the add-in to open my file?","No. PExL only writes standard Excel formulas. The file works anywhere."],
+  ["Does it slow down my workbook?","No. The output is native formulas; PExL isn't involved at recalculation time."],
+  ["Will it work in my locked-down corporate Excel?","That's the point. It runs locally via Excel-DNA / COM and needs no network or web-add-in permissions."],
+  ["Can I use functions PExL doesn't have a verb for?","Yes — raw(\"ANYFUNCTION\", args...) reaches all of Excel."],
+  ["Can I turn an existing formula into PExL?","Yes — select the cell and click Translate Formula. PExL decompiles it into readable code (nested IFs become a tidy check block)."]
+];
+
+/* ---------------- glossary data ---------------- */
+const GLOSSARY=[
+  {group:"Symbols & operators", items:[
+    {t:"|>", k:"pipe", d:"Feeds the value on the left in as the first argument of the verb on the right. Read it as “then”. x |> f(y) is identical to f(x, y).", p:'B2 |> upper', x:'=UPPER(B2)'},
+    {t:"->", k:"output", d:"Writes the result to a cell or range. Output-only — it never means anything else.", p:'B2 |> upper -> C2', x:'C2:  =UPPER(B2)'},
+    {t:"::", k:"bind", d:"Captures the current value under a name so later lines can reuse it (a compile-time alias that gets inlined).", p:'B2 |> split.First("-") :: parts\nparts |> fromLeft -> C2', x:'C2:  =TEXTBEFORE(B2,"-")'},
+    {t:"//", k:"comment", d:"Everything after // on a line is ignored by the compiler (but kept in the editor)."},
+    {t:"( )", k:"grouping / args", d:"Group sub-expressions to control precedence, and wrap verb arguments.", p:'(A1 + B1) * 2 -> C1', x:'=(A1+B1)*2'},
+    {t:".", k:"modifier", d:"Selects a variant of a verb: split.First, replace.last, round.up, dateDiff.years, legacy.vlookup.", p:'B2 |> split.Last("-") |> fromRight', x:'=TEXTAFTER(B2,"-",-1)'},
+    {t:",", k:"separator", d:"Separates arguments, and can separate statements on one line."},
+    {t:'"…"', k:"string", d:"A text literal."},
+    {t:"`…`", k:"raw string", d:"A text literal where inner double-quotes are literal — no escaping. Use when your text contains a quote."},
+    {t:"#…#", k:"date literal", d:"An ISO date literal.", p:'#2024-01-31# -> A1', x:'=DATE(2024,1,31)'},
+    {t:"%", k:"percent", d:"Number suffix; 10% means 0.1."},
+    {t:"+ - * / ^", k:"arithmetic", d:"Add, subtract, multiply, divide, power.", p:'A1 ^ 2 -> B1', x:'=A1^2'},
+    {t:"= <> != > < >= <=", k:"comparison", d:"Equality, inequality and ordering. != and <> are the same."},
+    {t:":", k:"range", d:"Excel range between two refs, plus whole-column (A:A) and whole-row (1:1)."},
+    {t:"$", k:"absolute ref", d:"Standard Excel absolute marker; passes straight through ($A$1)."},
+    {t:"!", k:"sheet qualifier", d:"References a cell on another sheet: Sheet2!A1, 'My Sheet'!A1."}
+  ]},
+  {group:"Keywords & natural phrasing", items:[
+    {t:"if … then … else", k:"keyword", d:"Inline conditional.", p:'if B2 > 10 then "High" else "Low" -> C2', x:'=IF(B2>10,"High","Low")'},
+    {t:"check", k:"keyword", d:"Multi-branch conditional — the first matching line wins, else is the fallback. Replaces nested IFs.", p:'check\n  B2 >= 90 then "A"\n  B2 >= 80 then "B"\n  else "C"\n-> D2', x:'=IFS(B2>=90,"A",B2>=80,"B",TRUE,"C")'},
+    {t:"return", k:"keyword", d:"Optional / cosmetic — marks the produced value."},
+    {t:"true / false", k:"literal", d:"Boolean literals.", p:'true', x:'TRUE'},
+    {t:"empty", k:"literal", d:"An empty string.", p:'empty', x:'""'},
+    {t:"and / or / not", k:"keyword", d:"Boolean logic.", p:'A1 > 0 and B1 > 0 -> C1', x:'=AND(A1>0,B1>0)'},
+    {t:"is / is not", k:"keyword", d:"Aliases for = and <>.", p:'A1 is "West" -> B1', x:'=A1="West"'},
+    {t:"contains", k:"keyword", d:"Substring test (case-insensitive).", p:'B2 contains "x" -> C2', x:'=ISNUMBER(SEARCH("x",B2))'},
+    {t:"startsWith / endsWith", k:"keyword", d:"Prefix / suffix test.", p:'B2 startsWith "USD" -> C2', x:'=LEFT(B2,3)="USD"'},
+    {t:"within", k:"preposition", d:"The haystack range in a lookup.", p:'find D2 within A1:A100 thenReturn B1:B100 -> E2', x:'=XLOOKUP(D2,A1:A100,B1:B100)'},
+    {t:"thenReturn", k:"preposition", d:"The result range in a lookup."},
+    {t:"ifMissing", k:"preposition", d:"Fallback when a lookup finds nothing.", p:'find D2 within A1:A100 thenReturn B1:B100 ifMissing "N/A" -> E2', x:'=XLOOKUP(D2,A1:A100,B1:B100,"N/A")'},
+    {t:"inTable / returnColumn", k:"preposition", d:"Table-style lookup by column number.", p:'find D2 inTable A1:D100 returnColumn 3 -> E2', x:'=XLOOKUP(D2,A1:A100,C1:C100)'},
+    {t:"where", k:"preposition", d:"The condition for filter.", p:'filter(A1:C100) where(B1:B100 > 100) -> E1', x:'=FILTER(A1:C100,B1:B100>100)'},
+    {t:"by", k:"preposition", d:"The sort key for sort.", p:'sort(A1:C100) by(2) -> E1', x:'=SORT(A1:C100,2)'},
+    {t:"with", k:"preposition", d:"The separator for combine.", p:'combine(A2, B2) with("-") -> C2', x:'=TEXTJOIN("-",TRUE,A2,B2)'},
+    {t:"descending / ascending", k:"keyword", d:"Sort direction.", p:'sort(A1:C100) by(2) descending -> E1', x:'=SORT(A1:C100,2,-1)'},
+    {t:"the, value, in, please, a", k:"filler", d:"Ignored anywhere so natural phrasing parses: ‘find the value D2 within …’."}
+  ]},
+  {group:"Verbs — Text", items:[
+    {t:"split.First / split.Last", k:"verb", d:"Binary split at the first / last delimiter. Pair with fromLeft / fromRight / at.", p:'B2 |> split.First("-") |> fromLeft', x:'=TEXTBEFORE(B2,"-")'},
+    {t:"split", k:"verb", d:"Split on all delimiters (array). Pair with at(n) or spill.", p:'B2 |> split("-") |> spill', x:'=TEXTSPLIT(B2,"-")'},
+    {t:"fromLeft / fromRight", k:"verb", d:"Keep the piece to the left / right of a split (defaults: first / last piece).", p:'B2 |> split.First("-") |> fromRight', x:'=TEXTAFTER(B2,"-")'},
+    {t:"at", k:"verb", d:"Keep the piece at a 1-based index after a split.", p:'B2 |> split("-") |> at(2)', x:'=INDEX(TEXTSPLIT(B2,"-"),2)'},
+    {t:"spill", k:"verb", d:"Spread all pieces across adjacent cells (dynamic array)."},
+    {t:"combine", k:"verb", d:"Join values, skipping blanks. Pair with with(separator).", p:'combine(A1, B1, C1) with("-") -> D1', x:'=TEXTJOIN("-",TRUE,A1,B1,C1)'},
+    {t:"trim", k:"verb", d:"Remove leading/trailing/duplicate spaces.", p:'trim(B2) -> C2', x:'=TRIM(B2)'},
+    {t:"clean", k:"verb", d:"Strip non-printable characters.", p:'clean(B2) -> C2', x:'=CLEAN(B2)'},
+    {t:"upper / lower / proper", k:"verb", d:"Change text case.", p:'proper(B2) -> C2', x:'=PROPER(B2)'},
+    {t:"replace", k:"verb", d:"Replace text. .first / .last / .nth(n) target one occurrence.", p:'replace(B2, "-", "_") -> C2', x:'=SUBSTITUTE(B2,"-","_")'},
+    {t:"contains / startsWith / endsWith", k:"verb", d:"Text tests (also usable as keywords).", p:'endsWith(B2, ".csv") -> C2', x:'=RIGHT(B2,4)=".csv"'},
+    {t:"length", k:"verb", d:"Number of characters.", p:'length(B2) -> C2', x:'=LEN(B2)'}
+  ]},
+  {group:"Verbs — Lookup", items:[
+    {t:"find", k:"verb", d:"Modern lookup (XLOOKUP). Use within / thenReturn / ifMissing; modifiers .wildcard, .approx, .reverse; or inTable / returnColumn.", p:'find D2 within A1:A100 thenReturn B1:B100 ifMissing "N/A" -> E2', x:'=XLOOKUP(D2,A1:A100,B1:B100,"N/A")'},
+    {t:"position", k:"verb", d:"Position (index) of a match.", p:'position D2 within A1:A100 -> E2', x:'=MATCH(D2,A1:A100,0)'}
+  ]},
+  {group:"Verbs — Logic", items:[
+    {t:"ifError", k:"verb", d:"Replace an error with a fallback.", p:'find D2 within A1:A100 thenReturn B1:B100 |> ifError("not found") -> E2', x:'=IFERROR(XLOOKUP(D2,A1:A100,B1:B100),"not found")'}
+  ]},
+  {group:"Verbs — Aggregation", items:[
+    {t:"sum / avg / min / max", k:"verb", d:"Basic aggregates. sum.ignoreErrors skips error cells.", p:'sum(A1:A10) -> C1', x:'=SUM(A1:A10)'},
+    {t:"count / countNum", k:"verb", d:"Count non-empty cells (COUNTA) / numeric cells (COUNT).", p:'count(A1:A10) -> C1', x:'=COUNTA(A1:A10)'},
+    {t:"sumWhere", k:"verb", d:"Conditional sum (SUMIFS). List conditions naturally with and.", p:'sumWhere(A1:A10, B1:B10 > 100 and C1:C10 = "West") -> F1', x:'=SUMIFS(A1:A10,B1:B10,">100",C1:C10,"West")'},
+    {t:"countWhere / avgWhere", k:"verb", d:"Conditional count (COUNTIFS) / average (AVERAGEIFS).", p:'countWhere(B1:B10 = "West") -> F1', x:'=COUNTIFS(B1:B10,"West")'}
+  ]},
+  {group:"Verbs — Dates", items:[
+    {t:"today / now", k:"verb", d:"Current date / date-time.", p:'today() -> A1', x:'=TODAY()'},
+    {t:"addDays / addMonths / addYears", k:"verb", d:"Shift a date.", p:'addMonths(A2, 3) -> B2', x:'=EDATE(A2,3)'},
+    {t:"yearOf / monthOf / dayOf / weekdayOf", k:"verb", d:"Extract a date part.", p:'yearOf(A2) -> B2', x:'=YEAR(A2)'},
+    {t:"dateDiff", k:"verb", d:"Difference between dates; .months / .years change the unit. (DATEDIF needs start ≤ end.)", p:'dateDiff.years(A2, today()) -> B2', x:'=DATEDIF(A2,TODAY(),"y")'},
+    {t:"Date", k:"verb", d:"Parse a date from text (ISO assumed).", p:'Date("2024-01-31") -> A1', x:'=DATE(2024,1,31)'}
+  ]},
+  {group:"Verbs — Math", items:[
+    {t:"round", k:"verb", d:"Round to N digits; .up / .down force direction.", p:'round(A2, 2) -> B2', x:'=ROUND(A2,2)'},
+    {t:"abs / sqrt / power / mod", k:"verb", d:"Absolute value, square root, power, remainder.", p:'power(A2, 3) -> B2', x:'=POWER(A2,3)'}
+  ]},
+  {group:"Verbs — Filter & shape (Excel 365/2021+)", items:[
+    {t:"filter", k:"verb", d:"Keep rows matching a condition.", p:'filter(A1:C100) where(B1:B100 > 100) -> E1', x:'=FILTER(A1:C100,B1:B100>100)'},
+    {t:"sort", k:"verb", d:"Sort a range by a key column; add descending.", p:'sort(A1:C100) by(2) descending -> E1', x:'=SORT(A1:C100,2,-1)'},
+    {t:"unique", k:"verb", d:"Distinct values.", p:'unique(A1:A100) -> E1', x:'=UNIQUE(A1:A100)'},
+    {t:"take", k:"verb", d:"First N rows.", p:'take(A1:A100, 5) -> E1', x:'=TAKE(A1:A100,5)'}
+  ]},
+  {group:"References & helpers", items:[
+    {t:"col / row / cell", k:"helper", d:"Build references from letters/numbers.", p:'cell("C", 2) -> D1', x:'C2'},
+    {t:"fixed", k:"helper", d:"Lock a reference with absolutes.", p:'fixed(A1:B2)', x:'$A$1:$B$2'}
+  ]},
+  {group:"Escape hatches — reach any Excel function", items:[
+    {t:"raw", k:"escape", d:"Emit any function verbatim, args in order.", p:'raw("SUMPRODUCT", A1:A10, B1:B10) -> C1', x:'=SUMPRODUCT(A1:A10,B1:B10)'},
+    {t:"legacy.*", k:"escape", d:"Call a legacy function by name (adds FALSE for exact match on V/HLOOKUP).", p:'legacy.vlookup(D2, A1:B100, 2) -> E2', x:'=VLOOKUP(D2,A1:B100,2,FALSE)'}
+  ]}
+];
+
+/* ---------------- add-in guide data ---------------- */
+const GUIDE=[
+  {grp:"Editor pane (the IDE)", rows:[
+    {n:"Dark / Light", s:"button", d:"Toggle the editor theme. Your choice is remembered between sessions."},
+    {n:"Use live cell refs", s:"checkbox", d:"When on, clicking a cell/range drops its reference into the editor at the cursor — and the next click <b>replaces</b> it instead of appending, so you can build a formula by pointing. Off = clicks navigate the sheet normally."},
+    {n:"Paste as values", s:"checkbox", d:"When on, <b>Apply</b> writes the computed result (frozen values). Off (default) = Apply writes the live <code>=FORMULA(...)</code> that recalculates."},
+    {n:"Preview", s:"button", d:"Compile your PExL and show the Excel formula below — without touching the sheet."},
+    {n:"Apply → cell", s:"button", d:"Compile and write straight to the target cell/range (no confirmation). With no <code>-&gt; target</code>, it writes to the selected cell."},
+    {n:"Banner: Load it / Dismiss", s:"appears on select", d:"When the selected cell has PExL you saved earlier, <b>Load it</b> pulls that code back into the editor; <b>Dismiss</b> hides the banner."},
+    {n:"Editor & output", s:"areas", d:"Type in the editor (word-wrapped, with completions, hovers and signature help). The output pane shows the preview, an applied confirmation, or a parse error with line/column."}
+  ]},
+  {grp:"Translate · Undo · Help", rows:[
+    {n:"Translate Formula", s:"ribbon / right-click", d:"Reads the selected cell's existing Excel formula and rewrites it as readable PExL in the editor. Nested IF/IFS ladders come back as a clean <code>check</code> block."},
+    {n:"Undo PExL change", s:"ribbon", d:"Excel clears its own undo when add-ins write to the grid, so PExL keeps its own — up to 100 steps, tracked <b>per worksheet</b>. Undo affects only the active sheet; switching tabs switches history. Greys out when there's nothing to undo."},
+    {n:"Help & Docs", s:"ribbon", d:"Opens a searchable pane of every tool and verb. Each card has ▶ Run (write to the sheet), View Excel formula (preview), and Try it yourself! (create a sample sheet with realistic data)."}
+  ]},
+  {grp:"Ribbon — Editor", rows:[
+    {n:"Open Editor", s:"button", d:"Open the editor task pane."},
+    {n:"Translate Formula", s:"button", d:"Decompile the selected cell's formula into PExL."},
+    {n:"Undo PExL change", s:"button", d:"Revert the last PExL write on the active sheet."}
+  ]},
+  {grp:"Ribbon — Text", rows:[
+    {n:"Split to Columns", s:"", d:"Break the selected cell on a delimiter into separate columns."},
+    {n:"Combine Columns", s:"", d:"Join several cells with a separator (TEXTJOIN)."},
+    {n:"Trim & Clean", s:"", d:"Strip extra spaces + nonprintable characters from the cell on your left."},
+    {n:"CSV / Paste Split", s:"", d:"Spread one comma-separated cell across columns (TEXTSPLIT)."},
+    {n:"Proper Case", s:"", d:"Title-case the cell on your left, after trimming."},
+    {n:"Email Domain", s:"", d:"Pull the part after the last @ from the cell on your left."}
+  ]},
+  {grp:"Ribbon — Shape", rows:[
+    {n:"Remove Duplicates", s:"", d:"Distinct values from the selected range (UNIQUE)."},
+    {n:"Sort By", s:"", d:"Sort the selected range by a key column (SORT)."},
+    {n:"Filter Rows", s:"", d:"Keep only rows matching a condition (FILTER)."},
+    {n:"Top N", s:"", d:"Take the highest N rows (SORT + TAKE)."},
+    {n:"Fill Blanks Down", s:"", d:"Fill a blank cell from the value above it."}
+  ]},
+  {grp:"Ribbon — Lookup & Logic", rows:[
+    {n:"Lookup Builder", s:"", d:"XLOOKUP across sheets with a fallback, seeded from your cell."},
+    {n:"If / Check", s:"", d:"Multi-branch logic without nested IFs (IFS), your cell as the subject."},
+    {n:"Safe Divide", s:"", d:"Divide the two cells on your left, showing a dash instead of #DIV/0!."}
+  ]},
+  {grp:"Ribbon — Summarize", rows:[
+    {n:"Quick Stats", s:"", d:"Count, sum, average, min and max for the selected range."},
+    {n:"Sum Where", s:"", d:"Conditional total over your selection (SUMIFS)."},
+    {n:"Pivot Generator", s:"wizard", d:"Pick a group-by column + aggregation → spilled summary."}
+  ]},
+  {grp:"Ribbon — Dates", rows:[
+    {n:"Today", s:"", d:"Write today's date (TODAY) into the selected cell."},
+    {n:"Date Picker", s:"", d:"Pick a date on a calendar; it's written into the selected cell."},
+    {n:"Date Between", s:"", d:"Difference between the date on your left and today (DATEDIF); opens the editor with day/month/year variants."}
+  ]},
+  {grp:"Right-click (cell menu)", rows:[
+    {n:"Edit with PExL", s:"", d:"Open the editor for the selected cell."},
+    {n:"Translate formula to PExL", s:"", d:"Decompile the selected cell's formula into PExL."}
+  ]}
+];
+
+/* ---------------- render ---------------- */
+document.getElementById("heroExcel").innerHTML=hlExcel('=IF(F7="x", "x", IFERROR(\n  (TIMEVALUE(TRIM(MID(TRIM(MID(F7, FIND(",", F7)+1, 99)),\n    FIND("-", TRIM(MID(F7, FIND(",", F7)+1, 99)))+1, 99)))\n   - TIMEVALUE(TRIM(LEFT(TRIM(MID(F7, FIND(",", F7)+1, 99)),\n    FIND("-", TRIM(MID(F7, FIND(",", F7)+1, 99)))-1)))) * 24, 0))');
+document.getElementById("heroPexl").innerHTML=hlPexl('// pull the "start-end" window after the comma, then split it\nF7 |> split.First(",") |> fromRight |> trim :: window\nwindow |> split.First("-") |> fromLeft  |> trim :: startTime\nwindow |> split.First("-") |> fromRight |> trim :: endTime\n\n// "x" rows pass through; bad data falls back to 0\ncheck\n  F7 = "x" then "x"\n  else ifError((raw("TIMEVALUE", endTime) - raw("TIMEVALUE", startTime)) * 24, 0)\n-> G7');
+
+const chips=document.getElementById("chips");
+EXAMPLES.forEach(e=>{const b=document.createElement("button");b.className="chip";b.textContent=e.name;
+  b.onclick=()=>{document.getElementById("pexlIn").value=e.pexl;renderOut(e.pexl);};chips.appendChild(b);});
+
+const tin=document.getElementById("pexlIn");
+tin.value=EXAMPLES[0].pexl;
+tin.addEventListener("input",()=>renderOut(tin.value));
+renderOut(tin.value);
+function copyText(text){
+  if(navigator.clipboard&&navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+  const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";
+  document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(e){}document.body.removeChild(ta);
+  return Promise.resolve();
+}
+const copyAllBtn=document.getElementById("copyOut");
+copyAllBtn.onclick=()=>{
+  if(!LAST_CELLS.length)return;
+  copyText(LAST_CELLS.map(cellText).join("\n")).then(()=>flash(copyAllBtn,"copied all"));
+};
+document.getElementById("excelOut").addEventListener("click",ev=>{
+  const btn=ev.target.closest(".cellcopy");if(!btn)return;
+  const c=LAST_CELLS[+btn.dataset.i];if(!c)return;
+  copyText("="+c.formula).then(()=>flash(btn));
+});
+
+const cl=document.getElementById("compare-list");
+COMPARE.forEach(c=>{
+  const d=document.createElement("div");d.className="acc";d.setAttribute("open","");
+  d.innerHTML='<summary><span class="n" style="background:var(--red)">≈</span>'+c.title+'</summary>'+
+    '<div class="body">'+
+      '<div><div class="label">Excel — before</div><pre class="code">'+hlExcel(c.excel)+'</pre></div>'+
+      '<div><div class="label">PExL — after</div><pre class="code">'+hlPexl(c.pexl)+'</pre></div>'+
+    '</div>';
+  cl.appendChild(d);
+});
+
+const tl=document.getElementById("tutorial-list");
+TUTORIAL.forEach((s,i)=>{
+  const d=document.createElement("details");d.className="acc";if(i===0)d.open=true;
+  d.innerHTML='<summary><span class="n">'+(i+1)+'</span>'+s.t+'</summary>'+
+    '<div class="body"><div><div class="label">PExL</div><pre class="code">'+hlPexl(s.p)+'</pre></div>'+
+    '<div><div class="label">Excel</div><pre class="code">'+hlExcel(s.x)+'</pre></div>'+
+    '<div style="grid-column:1/-1;color:var(--muted);font-size:14px">'+s.d+'</div></div>';
+  tl.appendChild(d);
+});
+
+const ctb=document.querySelector("#cheatTable tbody");
+function drawCheat(filter){
+  ctb.innerHTML="";
+  CHEAT.filter(r=>!filter||r.join(" ").toLowerCase().includes(filter)).forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML="<td>"+r[0]+"</td><td><code>"+esc(r[1])+"</code></td><td><code>"+esc(r[2])+"</code></td>";
+    ctb.appendChild(tr);
+  });
+}
+drawCheat("");
+document.getElementById("cheatSearch").addEventListener("input",e=>drawCheat(e.target.value.toLowerCase()));
+
+const tg=document.getElementById("templateGrid");
+TEMPLATES.forEach(t=>{const c=document.createElement("div");c.className="card";
+  c.innerHTML='<div class="badge">'+t[0]+'</div><h4>'+t[1]+'</h4><p>'+t[2]+'</p>';tg.appendChild(c);});
+
+const fl=document.getElementById("faq-list");
+FAQ.forEach(f=>{const d=document.createElement("details");d.className="acc";
+  d.innerHTML='<summary>'+f[0]+'</summary><div class="body" style="grid-template-columns:1fr"><div style="color:var(--muted)">'+f[1]+'</div></div>';
+  fl.appendChild(d);});
+
+/* glossary */
+const glossList=document.getElementById("glossList");
+const glossEmpty=document.getElementById("glossEmpty");
+function glossItemHtml(it){
+  let ex="";
+  if(it.p){
+    ex='<div class="ex"><div><div class="label">PExL</div><pre class="code">'+hlPexl(it.p)+'</pre></div>'+
+       (it.x?'<div><div class="label">Excel</div><pre class="code">'+hlExcel(it.x)+'</pre></div>':'')+'</div>';
+  }
+  return '<div class="gloss"><div class="top"><span class="term">'+esc(it.t)+'</span>'+
+    '<span class="kind">'+esc(it.k)+'</span></div><div class="desc">'+it.d+'</div>'+ex+'</div>';
+}
+function drawGloss(filter){
+  glossList.innerHTML="";
+  let shown=0;
+  GLOSSARY.forEach(g=>{
+    const matches=g.items.filter(it=>{
+      if(!filter) return true;
+      return (g.group+" "+it.t+" "+it.k+" "+it.d+" "+(it.p||"")+" "+(it.x||"")).toLowerCase().includes(filter);
+    });
+    if(!matches.length) return;
+    shown+=matches.length;
+    const h=document.createElement("div");h.className="glosshead";h.textContent=g.group;glossList.appendChild(h);
+    matches.forEach(it=>{const d=document.createElement("div");d.innerHTML=glossItemHtml(it);glossList.appendChild(d.firstChild);});
+  });
+  glossEmpty.style.display=shown?"none":"block";
+}
+drawGloss("");
+document.getElementById("glossSearch").addEventListener("input",e=>drawGloss(e.target.value.trim().toLowerCase()));
+
+/* add-in guide */
+const guideList=document.getElementById("guideList");
+GUIDE.forEach(g=>{
+  const h=document.createElement("div");h.className="guidegrp";h.textContent=g.grp;guideList.appendChild(h);
+  g.rows.forEach(r=>{
+    const row=document.createElement("div");row.className="guiderow";
+    row.innerHTML='<div class="gname">'+esc(r.n)+(r.s?'<small>'+esc(r.s)+'</small>':'')+'</div>'+
+      '<div class="gdesc">'+r.d+'</div>';
+    guideList.appendChild(row);
+  });
+});
+
+/* theme toggle */
+const tb=document.getElementById("themeBtn");
+tb.onclick=()=>{const r=document.documentElement;
+  r.setAttribute("data-theme", r.getAttribute("data-theme")==="light"?"":"light");};
+
+/* ---------------- SPA router: one view at a time, no page reloads ---------------- */
+const VIEWS=["home","why","play","compare","tutorial","cheat","glossary","templates","guide","how","faq"];
+function currentRoute(){ const h=(location.hash||"").replace(/^#/,""); return VIEWS.indexOf(h)>=0?h:"home"; }
+function route(){
+  const r=currentRoute();
+  VIEWS.forEach(v=>{ const el=document.getElementById(v); if(el) el.style.display=(v===r)?"":"none"; });
+  document.querySelectorAll("nav .links a").forEach(a=>{
+    a.classList.toggle("active", a.getAttribute("href")==="#"+r);
+  });
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+route();
+</script>
+</body>
+</html>

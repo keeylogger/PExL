@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PExL Documentation</title>
+  <style>
+    :root {
+      --bg: #ffffff; --panel: #f3f3f3; --border: #d8d8d8; --fg: #1f1f1f;
+      --accent: #0a7d63; --accent2: #0a5fb0; --err: #c0392b; --muted: #6a6a6a;
+      --code-bg: #f6f8fa; --chip: #e7eef5; --chip-fg: #0a5fb0;
+    }
+    html[data-theme="dark"] {
+      --bg: #1e1e1e; --panel: #252526; --border: #3c3c3c; --fg: #d4d4d4;
+      --accent: #4ec9b0; --accent2: #569cd6; --err: #f48771; --muted: #858585;
+      --code-bg: #1b1b1b; --chip: #2a3540; --chip-fg: #9cd0ff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; flex-direction: column; height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--fg);
+      font-size: 13.5px;
+    }
+    header {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex-wrap: wrap;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+    }
+    header .brand { font-weight: 700; color: var(--accent); letter-spacing: .5px; }
+    header .brand small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+    #search {
+      flex: 1 1 160px; min-width: 120px; background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; outline: none;
+    }
+    #search:focus { border-color: var(--accent2); }
+    button {
+      background: var(--accent2); color: #fff; border: 0; padding: 6px 12px;
+      border-radius: 6px; cursor: pointer; font-size: 12.5px;
+    }
+    button:hover { filter: brightness(1.1); }
+    button.secondary { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+    button.secondary:hover { background: rgba(127,127,127,.12); }
+    #btnTheme { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 5px 10px; }
+    #btnTheme:hover { color: var(--fg); }
+    main { flex: 1 1 auto; overflow: auto; padding: 12px; }
+    .cat { margin: 14px 4px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); font-weight: 700; }
+    details.card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      margin: 8px 0; padding: 0; overflow: hidden;
+    }
+    details.card[open] { box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+    summary {
+      list-style: none; cursor: pointer; padding: 11px 14px; display: flex; align-items: center; gap: 10px;
+      user-select: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary .tw { color: var(--muted); transition: transform .15s ease; font-size: 11px; }
+    details[open] summary .tw { transform: rotate(90deg); }
+    summary .title { font-weight: 600; }
+    summary .chip {
+      margin-left: auto; background: var(--chip); color: var(--chip-fg);
+      font-size: 10.5px; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+    }
+    .body { padding: 0 14px 14px 14px; }
+    .desc { color: var(--fg); margin: 2px 0 10px; line-height: 1.45; }
+    pre.code {
+      background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; margin: 0 0 10px; overflow: auto;
+      font-family: Consolas, "Courier New", monospace; font-size: 13px; line-height: 1.5; white-space: pre;
+      font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;
+    }
+    .kw { color: var(--accent2); }
+    .str { color: var(--accent); }
+    .com { color: var(--muted); font-style: italic; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .result {
+      margin-top: 10px; font-family: Consolas, "Courier New", monospace; font-size: 13px;
+      display: none; font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;
+    }
+    .result .lbl { color: var(--muted); display: block; margin-bottom: 3px; font-family: "Segoe UI", sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+    .result .formula { color: var(--accent); white-space: pre-wrap; }
+    .result .tgt { color: var(--accent2); }
+    .result .ok { color: var(--accent); }
+    .result.err .formula { color: var(--err); }
+    .empty { color: var(--muted); padding: 24px; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">PExL<small>documentation</small></span>
+    <input id="search" type="search" placeholder="Search tools and verbs..." autocomplete="off" />
+    <button id="btnTheme" type="button" title="Switch between light and dark mode">Dark</button>
+  </header>
+  <main id="list"></main>
+
+  <script>
+    const host = window.chrome && window.chrome.webview;
+    function send(o) { if (host) host.postMessage(JSON.stringify(o)); }
+
+    // ---- shared light/dark theme (same key the editor uses) ----
+    let theme = "light";
+    try { theme = localStorage.getItem("pexl-theme") || "light"; } catch (e) {}
+    function applyTheme(t) {
+      theme = (t === "dark") ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", theme);
+      try { localStorage.setItem("pexl-theme", theme); } catch (e) {}
+      const b = document.getElementById("btnTheme");
+      if (b) b.textContent = theme === "dark" ? "Light" : "Dark";
+    }
+    applyTheme(theme);
+    document.getElementById("btnTheme").onclick = () => applyTheme(theme === "dark" ? "light" : "dark");
+
+    // ---- content: one entry per ribbon tool / core verb ----
+    const DOCS = [
+      { cat: "Text", title: "Trim & Clean", demo: "trim",
+        desc: "Strip leading/trailing spaces and remove nonprintable characters from messy imported text.",
+        code: 'A2 |> trim |> clean -> B2' },
+      { cat: "Text", title: "Proper Case", demo: "proper",
+        desc: "Title-case a name or label after trimming it.",
+        code: 'A2 |> trim |> proper -> B2' },
+      { cat: "Text", title: "Email Domain", demo: "email",
+        desc: "Pull the part after the last @ out of an email address.",
+        code: 'A2 |> split.Last("@") |> fromRight -> B2' },
+      { cat: "Text", title: "Split to Columns", demo: "split",
+        desc: "Break one cell on a delimiter and place the pieces in neighbouring columns.",
+        code: 'A2 |> split.First("-") :: parts\nparts |> fromLeft  -> B2\nparts |> fromRight -> C2' },
+      { cat: "Text", title: "Combine Columns", demo: "combine",
+        desc: "Join several cells together with a separator.",
+        code: 'combine(A2, B2) with(" ") -> C2' },
+      { cat: "Text", title: "CSV / Paste Split", demo: "csv",
+        desc: "Spread a comma-separated value across columns. The result spills automatically.",
+        code: 'A2 |> split(",") |> spill -> B2' },
+
+      { cat: "Shape", title: "Remove Duplicates", demo: "unique",
+        desc: "Return the distinct values from a range.",
+        code: 'unique(A2:A13) -> C2' },
+      { cat: "Shape", title: "Sort By", demo: "sort",
+        desc: "Sort a range by a chosen column, ascending or descending.",
+        code: 'sort(A2:B13) by(2) descending -> D2' },
+      { cat: "Shape", title: "Filter Rows", demo: "filter",
+        desc: "Keep only the rows that match a condition.",
+        code: 'filter(A2:B13) where(A2:A13 = "West") -> D2' },
+      { cat: "Shape", title: "Top N", demo: "topn",
+        desc: "Sort by a column, then keep the highest few rows.",
+        code: 'sort(A2:B13) by(2) descending :: ranked\ntake(ranked, 5) -> D2' },
+      { cat: "Shape", title: "Fill Blanks Down", demo: "fillblanks",
+        desc: "Fill a blank cell from the value directly above it.",
+        code: 'if A3 is empty then A2 else A3 -> B3' },
+
+      { cat: "Lookup & Logic", title: "Lookup Builder", demo: "lookup",
+        desc: "Look a value up in another column with a friendly fallback when it is missing (XLOOKUP).",
+        code: 'find A2 within C:C thenReturn D:D ifMissing "N/A" -> B2' },
+      { cat: "Lookup & Logic", title: "If / Check", demo: "check",
+        desc: "Multi-branch logic without nesting IFs. The first matching line wins; else is the fallback.",
+        code: 'check\n  A2 >= 90 then "A"\n  A2 >= 80 then "B"\n  A2 >= 70 then "C"\n  else "F"\n-> B2' },
+      { cat: "Lookup & Logic", title: "Safe Divide", demo: "safedivide",
+        desc: "Divide two cells but show a dash instead of #DIV/0! when the denominator is zero.",
+        code: 'ifError(A2 / B2, "-") -> C2' },
+
+      { cat: "Summarize", title: "Quick Stats", demo: "quickstats",
+        desc: "Aggregate a range. Swap avg for count, sum, min or max.",
+        code: 'avg(B2:B13) -> D2' },
+      { cat: "Summarize", title: "Sum Where", demo: "sumwhere",
+        desc: "Conditional total over a range (SUMIFS).",
+        code: 'sumWhere(B2:B13, A2:A13 = "West") -> D2' },
+
+      { cat: "Dates", title: "Today", demo: "today",
+        desc: "Write today's date into a cell.",
+        code: 'today() -> B1' },
+      { cat: "Dates", title: "Date Between", demo: "datediff",
+        desc: "Difference between a date and today. Choose the unit with .days, .months or .years.",
+        code: 'dateDiff.days(A2, today()) -> B2' }
+    ];
+
+    // ---- tiny PExL syntax highlighter for the snippet blocks ----
+    const KW = /\b(check|then|else|if|is|empty|not|and|or|within|thenReturn|ifMissing|by|with|where|descending|ascending|true|false)\b/g;
+    function escapeHtml(s) { return (s || "").replace(/[&<>]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
+    function highlight(code) {
+      // protect strings first, then keywords, then comments per line
+      let html = escapeHtml(code);
+      html = html.replace(/&quot;[^&]*?&quot;|"[^"]*"/g, m => '\u0001' + m + '\u0002');
+      html = html.replace(KW, '<span class="kw">$1</span>');
+      html = html.replace(/\u0001([\s\S]*?)\u0002/g, (m, s) => '<span class="str">' + s + '</span>');
+      html = html.split('\n').map(line => {
+        const i = line.indexOf('//');
+        if (i >= 0) return line.slice(0, i) + '<span class="com">' + line.slice(i) + '</span>';
+        return line;
+      }).join('\n');
+      return html;
+    }
+
+    const list = document.getElementById("list");
+    const cardById = {};
+
+    function render(filter) {
+      list.innerHTML = "";
+      const q = (filter || "").trim().toLowerCase();
+      let lastCat = null, shown = 0;
+      DOCS.forEach((d, idx) => {
+        const hay = (d.title + " " + d.desc + " " + d.code + " " + d.cat).toLowerCase();
+        if (q && hay.indexOf(q) < 0) return;
+        shown++;
+        if (d.cat !== lastCat) {
+          const h = document.createElement("div");
+          h.className = "cat"; h.textContent = d.cat; list.appendChild(h); lastCat = d.cat;
+        }
+        const id = "c" + idx;
+        const card = document.createElement("details");
+        card.className = "card";
+        card.innerHTML =
+          '<summary><span class="tw">&#9654;</span><span class="title">' + escapeHtml(d.title) + '</span>'
+          + '<span class="chip">' + escapeHtml(d.cat) + '</span></summary>'
+          + '<div class="body">'
+          + '<p class="desc">' + escapeHtml(d.desc) + '</p>'
+          + '<pre class="code">' + highlight(d.code) + '</pre>'
+          + '<div class="actions">'
+          + '<button data-apply="' + id + '" title="Write this formula to the sheet (like Apply &#8594; cell)">&#9654; Run</button>'
+          + '<button class="secondary" data-view="' + id + '" title="Show the Excel formula this compiles to, without changing the sheet">View Excel formula</button>'
+          + '<button class="secondary" data-try="' + id + '">Try it yourself!</button>'
+          + '</div>'
+          + '<div class="result" id="res-' + id + '"><span class="lbl">Compiles to</span><div class="formula"></div></div>'
+          + '</div>';
+        list.appendChild(card);
+        cardById[id] = d;
+      });
+      if (shown === 0) list.innerHTML = '<div class="empty">No tools match &ldquo;' + escapeHtml(filter) + '&rdquo;.</div>';
+    }
+
+    list.addEventListener("click", function (e) {
+      const get = a => e.target.getAttribute && e.target.getAttribute(a);
+      const applyId = get("data-apply"), viewId = get("data-view"), tryId = get("data-try");
+      if (applyId) {
+        e.preventDefault();
+        send({ type: "apply", id: applyId, code: cardById[applyId].code });
+      } else if (viewId) {
+        e.preventDefault();
+        send({ type: "compile", id: viewId, code: cardById[viewId].code });
+      } else if (tryId) {
+        e.preventDefault();
+        send({ type: "tryIt", demo: cardById[tryId].demo, code: cardById[tryId].code });
+      }
+    });
+
+    function showResult(id, cells) {
+      const box = document.getElementById("res-" + id);
+      if (!box) return;
+      box.classList.remove("err");
+      const html = (!cells || !cells.length)
+        ? '(nothing to preview)'
+        : cells.map(c => '<span class="tgt">' + escapeHtml(c.target || "(active cell)") + '</span> &#8592; ' + escapeHtml(c.formula)).join('<br>');
+      box.querySelector(".lbl").textContent = "Compiles to";
+      box.querySelector(".formula").innerHTML = html;
+      box.style.display = "block";
+    }
+    function showError(id, msg, line, col) {
+      const box = document.getElementById("res-" + id);
+      if (!box) return;
+      box.classList.add("err");
+      box.querySelector(".lbl").textContent = "Error";
+      box.querySelector(".formula").textContent = (msg || "Parse error") + (line ? (" (line " + line + ", col " + col + ")") : "");
+      box.style.display = "block";
+    }
+    function showApplied(id, count) {
+      const box = document.getElementById("res-" + id);
+      if (!box) return;
+      box.classList.remove("err");
+      box.querySelector(".lbl").textContent = "Done";
+      box.querySelector(".formula").innerHTML = '<span class="ok">Applied ' + (count || 0) + ' item(s) to the active sheet.</span>';
+      box.style.display = "block";
+    }
+
+    if (host) {
+      host.addEventListener("message", function (ev) {
+        const msg = ev.data;
+        if (msg.type === "preview") showResult(msg.id, msg.cells);
+        else if (msg.type === "applied") showApplied(msg.id, msg.count);
+        else if (msg.type === "error") showError(msg.id, msg.message, msg.line, msg.column);
+      });
+    }
+
+    document.getElementById("search").addEventListener("input", e => render(e.target.value));
+    render("");
+  </script>
+</body>
+</html>

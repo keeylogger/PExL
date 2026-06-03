@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PExL Editor</title>
+  <style>
+    :root {
+      /* light theme (default) */
+      --bg: #ffffff; --panel: #f3f3f3; --border: #d8d8d8; --fg: #1f1f1f;
+      --accent: #0a7d63; --accent2: #0a5fb0; --err: #c0392b; --muted: #6a6a6a;
+      --warn: #9a7d23;
+      --banner-bg: #fbf3d3; --banner-fg: #6a5512; --banner-action: #1f1f1f;
+    }
+    html[data-theme="dark"] {
+      --bg: #1e1e1e; --panel: #252526; --border: #3c3c3c; --fg: #d4d4d4;
+      --accent: #4ec9b0; --accent2: #569cd6; --err: #f48771; --muted: #858585;
+      --warn: #d7ba7d;
+      --banner-bg: #2d2d1e; --banner-fg: #ece2c2; --banner-action: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; flex-direction: column; height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--fg);
+    }
+    header {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px; flex-wrap: wrap;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+    }
+    header .brand { font-weight: 600; color: var(--accent); margin-right: auto; letter-spacing: .5px; }
+    button {
+      background: #0e639c; color: #fff; border: 0; padding: 6px 12px; border-radius: 4px;
+      cursor: pointer; font-size: 13px;
+    }
+    button.secondary { background: #3a3d41; }
+    button.ghost { background: transparent; color: var(--accent2); padding: 4px 8px; }
+    button:hover { filter: brightness(1.15); }
+    button#btnTheme {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+      padding: 4px 9px; font-size: 12px;
+    }
+    button#btnTheme:hover { color: var(--fg); }
+    label.toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; }
+    #banner {
+      display: none; align-items: center; gap: 10px; padding: 6px 12px;
+      background: var(--banner-bg); border-bottom: 1px solid var(--warn); color: var(--banner-fg); font-size: 12.5px;
+    }
+    #banner button.banner-action {
+      background: transparent; color: var(--banner-action); padding: 3px 8px;
+      border: 1px solid var(--warn); border-radius: 4px; font-weight: 600;
+    }
+    #banner button.banner-action:hover { background: rgba(127,127,127,.18); }
+    #editorWrap { flex: 1 1 auto; position: relative; min-height: 120px; }
+    #fallback {
+      width: 100%; height: 100%; border: 0; resize: none; padding: 12px;
+      background: var(--bg); color: var(--fg); font-family: Consolas, "Courier New", monospace;
+      font-size: 14px; line-height: 1.5; outline: none;
+      white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word;
+    }
+    #out {
+      flex: 0 0 auto; max-height: 42%; overflow: auto; padding: 8px 12px;
+      background: var(--panel); border-top: 1px solid var(--border); font-size: 12.5px;
+    }
+    .row { font-family: "Cascadia Code", Consolas, monospace; padding: 3px 0; }
+    .row .tgt { color: var(--accent2); }
+    .row .arrow { color: var(--muted); margin: 0 6px; }
+    .row .formula { color: var(--accent); }
+    .err { color: var(--err); white-space: pre-wrap; font-family: Consolas, monospace; }
+    .hint { color: var(--muted); }
+    .applied { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">PExL</span>
+    <button id="btnTheme" type="button" title="Switch between light and dark mode">Dark</button>
+    <label class="toggle"><input type="checkbox" id="insertMode" /> Use live cell refs</label>
+    <label class="toggle"><input type="checkbox" id="staticMode" /> Paste as values</label>
+    <button class="secondary" id="btnCompile">Preview</button>
+    <button id="btnApply">Apply &#8594; cell</button>
+  </header>
+
+  <div id="banner">
+    <span id="bannerText">This cell already has PExL.</span>
+    <button class="banner-action" id="btnLoadStored">Load it</button>
+    <button class="banner-action" id="btnDismiss">Dismiss</button>
+  </div>
+
+  <div id="editorWrap">
+    <textarea id="fallback" spellcheck="false" placeholder="B2 |> split.First(&quot;-&quot;) :: parts&#10;parts |> fromLeft  -> C2&#10;parts |> fromRight -> D2"></textarea>
+  </div>
+
+  <div id="out">
+    <span class="hint">Write PExL above, then <b>Preview</b> to see the Excel formula, or <b>Apply</b> to write it straight to the cell.</span>
+  </div>
+
+  <script src="pexl.lang.js"></script>
+  <script>
+    const host = window.chrome && window.chrome.webview;
+    let monacoEditor = null;
+    let storedCode = null;
+    const fallback = document.getElementById("fallback");
+    const out = document.getElementById("out");
+    const banner = document.getElementById("banner");
+
+    function getCode() { return monacoEditor ? monacoEditor.getValue() : fallback.value; }
+    function setCode(code) {
+      resetLiveRef();
+      if (monacoEditor) monacoEditor.setValue(code || "");
+      else fallback.value = code || "";
+    }
+    function send(obj) { if (host) host.postMessage(JSON.stringify(obj)); }
+    function isStatic() { return document.getElementById("staticMode").checked; }
+
+    // ---- light/dark theme (default light) ----
+    let theme = "light";
+    try { theme = localStorage.getItem("pexl-theme") || "light"; } catch (e) {}
+    function applyTheme(t) {
+      theme = (t === "dark") ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", theme);
+      try { localStorage.setItem("pexl-theme", theme); } catch (e) {}
+      if (window.monaco && monaco.editor && monaco.editor.setTheme)
+        monaco.editor.setTheme(theme === "dark" ? "pexl-dark" : "pexl-light");
+      const b = document.getElementById("btnTheme");
+      if (b) b.textContent = theme === "dark" ? "Light" : "Dark";
+    }
+    applyTheme(theme);
+    document.getElementById("btnTheme").onclick = () => applyTheme(theme === "dark" ? "light" : "dark");
+
+    // ---- load Monaco from the locally-vendored copy ----
+    (function loadMonaco() {
+      const s = document.createElement("script");
+      s.src = "monaco/vs/loader.js";
+      s.onload = function () {
+        try {
+          require.config({ paths: { vs: "monaco/vs" } });
+          require(["vs/editor/editor.main"], function () {
+            if (window.registerPexl) window.registerPexl(monaco);
+            const initial = fallback.value || "";
+            fallback.style.display = "none";
+            monacoEditor = monaco.editor.create(document.getElementById("editorWrap"), {
+              value: initial,
+              language: "pexl",
+              theme: (theme === "dark" ? "pexl-dark" : "pexl-light"),
+              minimap: { enabled: false },
+              fontSize: 14,
+              automaticLayout: true,
+              scrollBeyondLastLine: false,
+              renderLineHighlight: "all",
+              wordWrap: "on",
+              wrappingIndent: "indent",
+              tabSize: 2
+            });
+            // Any edit the user makes ends the current live-ref session.
+            monacoEditor.onDidChangeModelContent(() => { if (!suppressChange) resetLiveRef(); });
+            monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+              () => document.getElementById("btnCompile").click());
+          });
+        } catch (e) { /* keep textarea fallback */ }
+      };
+      s.onerror = function () { /* Monaco missing - textarea fallback stays */ };
+      document.head.appendChild(s);
+    })();
+
+    // ---- live cell refs: each click updates the same reference instead of
+    //      appending a new one. A live "session" ends as soon as the user types. ----
+    let liveRef = null;           // monaco: {range, addr}; textarea: {start, end, addr}
+    let suppressChange = false;   // true while we apply our own ref edit
+    function resetLiveRef() { liveRef = null; }
+
+    function insertRef(addr) {
+      if (monacoEditor) {
+        const model = monacoEditor.getModel();
+        let range;
+        if (liveRef && model.getValueInRange(liveRef.range) === liveRef.addr) {
+          range = liveRef.range;                 // replace the previous live ref
+        } else {
+          range = monacoEditor.getSelection();   // start a fresh one at the cursor
+        }
+        suppressChange = true;
+        monacoEditor.executeEdits("pexl-insert", [{ range: range, text: addr, forceMoveMarkers: true }]);
+        suppressChange = false;
+        const start = range.getStartPosition();
+        const newRange = new monaco.Range(start.lineNumber, start.column, start.lineNumber, start.column + addr.length);
+        liveRef = { range: newRange, addr: addr };
+        monacoEditor.setSelection(newRange);
+        monacoEditor.focus();
+      } else {
+        let start, end;
+        if (liveRef && fallback.value.slice(liveRef.start, liveRef.end) === liveRef.addr) {
+          start = liveRef.start; end = liveRef.end;
+        } else {
+          start = fallback.selectionStart; end = fallback.selectionEnd;
+        }
+        fallback.value = fallback.value.slice(0, start) + addr + fallback.value.slice(end);
+        const newEnd = start + addr.length;
+        liveRef = { start: start, end: newEnd, addr: addr };
+        fallback.setSelectionRange(start, newEnd);
+        fallback.focus();
+      }
+    }
+    fallback.addEventListener("input", resetLiveRef);
+
+    function renderPreview(cells) {
+      const rows = (!cells || !cells.length)
+        ? '<span class="hint">Nothing to preview.</span>'
+        : cells.map(c =>
+            '<div class="row"><span class="tgt">' + escapeHtml(c.target || "(active cell)") +
+            '</span><span class="arrow">&#8592;</span><span class="formula">' +
+            escapeHtml(c.formula) + '</span></div>').join("");
+      out.innerHTML = rows;
+    }
+    function escapeHtml(s) { return (s || "").replace(/[&<>]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
+
+    if (host) {
+      host.addEventListener("message", function (ev) {
+        const msg = ev.data;
+        switch (msg.type) {
+          case "insertRef": insertRef(msg.address); break;
+          case "setCode": setCode(msg.code); banner.style.display = "none"; break;
+          case "preview": renderPreview(msg.cells); break;
+          case "applied":
+            out.innerHTML = '<span class="applied">Applied ' + msg.count + ' item(s) to the sheet'
+              + (msg.asStatic ? ' as static values.' : '.') + '</span>';
+            break;
+          case "storedCode":
+            storedCode = msg.code;
+            document.getElementById("bannerText").textContent =
+              (msg.address ? (msg.address + " ") : "") + "has saved PExL.";
+            banner.style.display = "flex";
+            break;
+          case "error":
+            out.innerHTML = '<div class="err">' + escapeHtml(msg.message || "Parse error") +
+              (msg.line ? (" (line " + msg.line + ", col " + msg.column + ")") : "") + "</div>";
+            break;
+        }
+      });
+    }
+
+    document.getElementById("btnCompile").onclick = () => send({ type: "compile", code: getCode() });
+    // Apply writes straight to the sheet (no confirmation step).
+    document.getElementById("btnApply").onclick = () => send({ type: "apply", code: getCode(), asStatic: isStatic() });
+    document.getElementById("insertMode").onchange = (e) => { resetLiveRef(); send({ type: "insertMode", on: e.target.checked }); };
+    document.getElementById("btnLoadStored").onclick = () => { if (storedCode != null) setCode(storedCode); banner.style.display = "none"; };
+    document.getElementById("btnDismiss").onclick = () => { banner.style.display = "none"; };
+  </script>
+</body>
+</html>
