@@ -1,0 +1,37 @@
+# Normalize line endings: store text as LF in the repo, check out native on Windows.
+* text=auto eol=lf
+
+# Explicit text types
+*.cs      text
+*.csproj  text eol=crlf
+*.sln     text eol=crlf
+*.md      text
+*.json    text
+*.html    text
+*.css     text
+*.js      text
+*.svg     text
+*.yml     text
+*.yaml    text
+*.editorconfig text
+
+# Scripts that must stay CRLF for Windows tooling
+*.ps1     text eol=crlf
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+
+# Binary assets (never diff/merge as text)
+*.xll     binary
+*.dll     binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.zip     binary
+
+# Treat README.html as a normal text/HTML file for diffs
+README.html linguist-language=HTML
+
+# Keep the brand SVGs out of language stats (they're assets, not code)
+brand/*.svg linguist-detectable=false
