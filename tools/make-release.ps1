@@ -7,7 +7,8 @@
     for smoke-testing the exact bundle before you tag a release.
 
     Produces:  dist/PExL-<version>/      (the unzipped staging folder)
-               dist/PExL-<version>.zip    (the artifact to attach to a Release)
+               dist/PExL-<version>.zip    (full package — corporate/restricted)
+               dist/PExL-<version>.xll    (lightweight single file — broader audience)
 
 .PARAMETER Version
     Version string, e.g. 0.1.0 or v0.1.0. Defaults to 0.0.0-dev.
@@ -63,14 +64,21 @@ if (Test-Path $web) { Copy-Item $web (Join-Path $stage 'web') -Recurse } else { 
 if (Test-Path 'README.html')        { Copy-Item 'README.html' $stage }
 if (Test-Path 'release/INSTALL.txt') { Copy-Item 'release/INSTALL.txt' $stage }
 
+# Artifact 1: full ZIP (corporate/restricted — everything works).
 $zip = Join-Path 'dist' "$name.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
 
+# Artifact 2: standalone lightweight .xll (broader audience — ribbon + transpiler;
+# the editor/docs panes need the ZIP).
+$singleXll = Join-Path 'dist' "$name.xll"
+Copy-Item $xll.FullName $singleXll -Force
+
 Write-Host ""
-Write-Host "==> Done. Artifact:" -ForegroundColor Green
-Write-Host "    $((Resolve-Path $zip).Path)"
-Write-Host "    Contents:"
+Write-Host "==> Done. Artifacts:" -ForegroundColor Green
+Write-Host "    $((Resolve-Path $zip).Path)        (full package)"
+Write-Host "    $((Resolve-Path $singleXll).Path)  (lightweight single file)"
+Write-Host "    ZIP contents:"
 Get-ChildItem -Recurse $stage | ForEach-Object { "      $($_.FullName.Substring((Resolve-Path $stage).Path.Length + 1))" }
 
 if ($Tag) {

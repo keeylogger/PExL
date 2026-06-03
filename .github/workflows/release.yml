@@ -65,11 +65,12 @@ jobs:
                  Select-Object -First 1
           if (-not $xll) { throw "Packed 64-bit .xll not found under '$out'. Did the build/pack run?" }
 
-          $name  = "PExL-${{ steps.ver.outputs.tag }}"
+          $tag   = '${{ steps.ver.outputs.tag }}'
+          $name  = "PExL-$tag"
           $stage = "dist/$name"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
 
-          # Add-in (rename to a clean, user-friendly name).
+          # --- Artifact 1: full ZIP (corporate/restricted; everything works) ---
           Copy-Item $xll.FullName (Join-Path $stage 'PExL.xll')
 
           # Loose runtime files that are NOT packed into the .xll.
@@ -87,8 +88,15 @@ jobs:
           if (Test-Path $zip) { Remove-Item $zip -Force }
           Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
 
-          "zip=$zip" >> $env:GITHUB_OUTPUT
-          Write-Host "Packaged $zip"
+          # --- Artifact 2: standalone lightweight .xll (broader audience) ---
+          # Same packed add-in, shipped bare. Ribbon tools + transpiler work; the
+          # editor/docs panes require the ZIP (they load the loose web/ assets).
+          $singleXll = "dist/$name.xll"
+          Copy-Item $xll.FullName $singleXll -Force
+
+          "zip=$zip"            >> $env:GITHUB_OUTPUT
+          "xll=$singleXll"      >> $env:GITHUB_OUTPUT
+          Write-Host "Packaged:`n  $zip`n  $singleXll"
           Get-ChildItem -Recurse $stage | Select-Object FullName
 
       - name: Publish GitHub Release
@@ -98,18 +106,25 @@ jobs:
           name: PExL ${{ steps.ver.outputs.tag }}
           prerelease: true
           generate_release_notes: true
-          files: ${{ steps.pack.outputs.zip }}
+          files: |
+            ${{ steps.pack.outputs.zip }}
+            ${{ steps.pack.outputs.xll }}
           body: |
             ## PExL ${{ steps.ver.outputs.tag }}
 
-            Experimental test build of the PExL Excel add-in.
+            Experimental test build of the PExL Excel add-in. **Two downloads:**
+
+            | Download | Who it's for | What's included |
+            | --- | --- | --- |
+            | 📦 **`PExL-${{ steps.ver.outputs.tag }}.zip`** | Everyone — **required** on corporate/restricted PCs | Full package: ribbon tools, transpiler **and** the Monaco editor + Help/Docs panes |
+            | 📄 **`PExL-${{ steps.ver.outputs.tag }}.xll`** | Quick try on personal / less-restricted PCs | Lightweight single file: ribbon tools + transpiler. The editor/docs panes need the ZIP. |
 
             ### Install (Excel for Windows, 64-bit)
-            1. Download `PExL-${{ steps.ver.outputs.tag }}.zip`.
-            2. **Right-click the zip → Properties → tick "Unblock" → OK** *(before extracting)*.
-            3. Extract to a permanent folder, e.g. `C:\Tools\PExL\`.
-            4. Double-click `PExL.xll` (or add it via File → Options → Add-ins → Excel Add-ins → Go… → Browse…).
+            1. Download the **ZIP** (recommended) or the single **`.xll`**.
+            2. **Right-click the download → Properties → tick "Unblock" → OK** *(before extracting the ZIP)*.
+            3. ZIP: extract to a permanent folder, e.g. `C:\Tools\PExL\`. Single file: just keep the `.xll` somewhere permanent.
+            4. Double-click the `.xll` (or add it via File → Options → Add-ins → Excel Add-ins → Go… → Browse…).
             5. Look for the **PExL** tab in the ribbon.
 
-            Needs the Microsoft Edge **WebView2 Runtime** (preinstalled on most machines) for the editor/docs pane.
-            Full install notes are in `INSTALL.txt` inside the zip.
+            Needs the Microsoft Edge **WebView2 Runtime** (preinstalled on most machines) for the editor/docs panes.
+            Full install notes are in `INSTALL.txt` inside the ZIP.
