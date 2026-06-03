@@ -1,0 +1,61 @@
+## .NET / Visual Studio build output
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Build results / platform output dirs
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+build/
+bld/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+
+## Test results / coverage
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+## JetBrains Rider / VS Code
+.idea/
+*.sln.iml
+
+## OS cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+## PExL release artifacts — ship these via GitHub Releases, not in git
+**/publish/
+*.xll
+*.zip
+
+## Local staging overlay (don't commit this helper folder)
+GitHub_RELEASE/
