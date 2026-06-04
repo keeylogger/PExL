@@ -130,5 +130,72 @@ namespace PExL.Core.Tests
             Assert.Single(result.Cells);
             Assert.Equal("=TRIM(B2)", result.Cells[0].Formula);
         }
+
+        // ---- globals (MakeGlobal) ----
+
+        [Fact]
+        public void MakeGlobal_Constant_ProducesNamedDefinition()
+        {
+            var result = Transpiler.Transpile("MakeGlobal(0.2) :: TaxRate");
+            Assert.Empty(result.Cells);
+            Assert.Single(result.Globals);
+            Assert.Equal("TaxRate", result.Globals[0].Name);
+            Assert.Equal("=0.2", result.Globals[0].Formula);
+        }
+
+        [Fact]
+        public void MakeGlobal_Range_ProducesNamedDefinition()
+        {
+            var result = Transpiler.Transpile("MakeGlobal(A2:A100) :: SalesQ1");
+            Assert.Single(result.Globals);
+            Assert.Equal("SalesQ1", result.Globals[0].Name);
+            Assert.Equal("=$A$2:$A$100", result.Globals[0].Formula);
+        }
+
+        [Fact]
+        public void Global_IsEmittedVerbatim_WhenReferenced()
+        {
+            var src = "MakeGlobal(0.2) :: TaxRate\nA1 * TaxRate -> B1";
+            var result = Transpiler.Transpile(src);
+            Assert.Single(result.Globals);
+            Assert.Single(result.Cells);
+            Assert.Equal("B1", result.Cells[0].Target);
+            Assert.Equal("=A1*TaxRate", result.Cells[0].Formula);
+        }
+
+        [Fact]
+        public void Global_CanReferenceEarlierGlobals()
+        {
+            var src = "MakeGlobal(B1) :: Revenue\nMakeGlobal(C1) :: Cost\nMakeGlobal(Revenue - Cost) :: Margin";
+            var result = Transpiler.Transpile(src);
+            Assert.Equal(3, result.Globals.Count);
+            Assert.Equal("Margin", result.Globals[2].Name);
+            Assert.Equal("=Revenue-Cost", result.Globals[2].Formula);
+        }
+
+        [Fact]
+        public void MakeGlobal_WithoutName_Throws()
+        {
+            Assert.Throws<PExL.Core.Diagnostics.PExLException>(() => Transpiler.Transpile("MakeGlobal(0.2)"));
+        }
+
+        [Fact]
+        public void GlobalSynonym_Works()
+        {
+            var result = Transpiler.Transpile("global(0.2) :: TaxRate");
+            Assert.Single(result.Globals);
+            Assert.Equal("TaxRate", result.Globals[0].Name);
+        }
+
+        // ---- console commands (ShowGlobals) ----
+
+        [Fact]
+        public void ShowGlobals_ProducesCommand_NotFormula()
+        {
+            var result = Transpiler.Transpile("ShowGlobals()");
+            Assert.Empty(result.Cells);
+            Assert.Single(result.Commands);
+            Assert.Equal("showGlobals", result.Commands[0].Name);
+        }
     }
 }

@@ -85,6 +85,10 @@ namespace PExL.Core.StdLib
             // escape hatches
             ["raw"] = new[] { "formula" },
             ["legacy"] = Array.Empty<string>(),
+
+            // globals (document-level variables) + console commands
+            ["makeGlobal"] = new[] { "global", "defineGlobal", "setGlobal" },
+            ["showGlobals"] = new[] { "showGlobal", "globals", "listGlobals" },
         };
 
         // prepositional-label aliases -> canonical label

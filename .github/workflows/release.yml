@@ -81,7 +81,7 @@ jobs:
           if (Test-Path $web) { Copy-Item $web (Join-Path $stage 'web') -Recurse } else { Write-Warning 'web\ folder not found' }
 
           # Docs + install guide.
-          if (Test-Path 'README.html')        { Copy-Item 'README.html' $stage }
+          if (Test-Path 'index.html')         { Copy-Item 'index.html' $stage }
           if (Test-Path 'release/INSTALL.txt') { Copy-Item 'release/INSTALL.txt' $stage }
 
           $zip = "dist/$name.zip"

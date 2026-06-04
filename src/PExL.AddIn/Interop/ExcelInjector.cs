@@ -13,12 +13,17 @@ namespace PExL.AddIn.Interop
     public static class ExcelInjector
     {
         public static void Inject(IReadOnlyList<CellFormula> cells, string originalCode, bool asStatic = false)
+            => Inject(cells, null, originalCode, asStatic);
+
+        public static void Inject(IReadOnlyList<CellFormula> cells, IReadOnlyList<GlobalDef>? globals, string originalCode, bool asStatic = false)
         {
             ExcelAsyncUtil.QueueAsMacro(() =>
             {
                 try
                 {
                     dynamic app = ExcelDnaUtil.Application;
+                    if (globals != null && globals.Count > 0)
+                        GlobalStore.CreateMany(app, globals);
                     WriteCells(app, cells, originalCode, asStatic);
                 }
                 catch

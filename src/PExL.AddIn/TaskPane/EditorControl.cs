@@ -118,6 +118,18 @@ namespace PExL.AddIn.TaskPane
                     case "insertMode":
                         SelectionTracker.SetInsertMode((bool?)root["on"] ?? false);
                         break;
+                    case "getGlobals":
+                        RequestGlobals();
+                        break;
+                    case "updateGlobal":
+                        MutateGlobal(app => GlobalStore.Update(app, (string?)root["name"] ?? "", (string?)root["refersTo"] ?? ""));
+                        break;
+                    case "renameGlobal":
+                        MutateGlobal(app => GlobalStore.Rename(app, (string?)root["name"] ?? "", (string?)root["newName"] ?? ""));
+                        break;
+                    case "deleteGlobal":
+                        MutateGlobal(app => GlobalStore.Delete(app, (string?)root["name"] ?? ""));
+                        break;
                 }
             }
             catch (Exception ex)
@@ -139,12 +151,23 @@ namespace PExL.AddIn.TaskPane
                 for (int i = 0; i < result.Cells.Count; i++)
                     cells[i] = new { target = result.Cells[i].Target, formula = result.Cells[i].Formula };
 
-                Post(new { type = forApply ? "previewForApply" : "preview", cells });
+                var globals = new object[result.Globals.Count];
+                for (int i = 0; i < result.Globals.Count; i++)
+                    globals[i] = new { name = result.Globals[i].Name, formula = result.Globals[i].Formula };
+
+                Post(new { type = forApply ? "previewForApply" : "preview", cells, globals });
+
+                // ShowGlobals() (and friends) open the manager rather than writing a cell.
+                bool showGlobals = result.Commands.Exists(c => c.Name == "showGlobals");
+                if (showGlobals) RequestGlobals();
 
                 if (apply)
                 {
-                    ExcelInjector.Inject(result.Cells, code, asStatic);
-                    Post(new { type = "applied", count = result.Cells.Count, asStatic });
+                    if (result.Cells.Count > 0 || result.Globals.Count > 0)
+                    {
+                        ExcelInjector.Inject(result.Cells, result.Globals, code, asStatic);
+                        Post(new { type = "applied", count = result.Cells.Count, globals = result.Globals.Count, asStatic });
+                    }
                 }
             }
             catch (PExL.Core.Diagnostics.PExLException px)
@@ -194,6 +217,42 @@ namespace PExL.AddIn.TaskPane
                 else Post(payload);
             }
             catch { /* ignore */ }
+        }
+
+        // ---- globals manager (ShowGlobals) ----
+
+        /// <summary>Read the PExL globals on the macro thread and push them to the manager.</summary>
+        private void RequestGlobals()
+        {
+            ExcelAsyncUtil.QueueAsMacro(() =>
+            {
+                object[] items;
+                try
+                {
+                    dynamic app = ExcelDnaUtil.Application;
+                    var list = GlobalStore.List(app);
+                    items = new object[list.Count];
+                    for (int i = 0; i < list.Count; i++)
+                        items[i] = new { name = list[i].Name, refersTo = list[i].RefersTo, value = list[i].Value };
+                }
+                catch { items = new object[0]; }
+                PostOnUi(new { type = "globals", items });
+            });
+        }
+
+        /// <summary>Run a global mutation on the macro thread, then refresh the manager.</summary>
+        private void MutateGlobal(Func<dynamic, bool> action)
+        {
+            ExcelAsyncUtil.QueueAsMacro(() =>
+            {
+                try
+                {
+                    dynamic app = ExcelDnaUtil.Application;
+                    action(app);
+                }
+                catch { /* best effort */ }
+            });
+            RequestGlobals();
         }
 
         private void Post(object payload)

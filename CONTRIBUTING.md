@@ -29,7 +29,7 @@ tests/
   PExL.Core.Tests/  xUnit golden tests (PExL → formula and formula → PExL).
 docs/
   language-spec.md  the authoritative v1 spec — the contract the lexer/parser/emitter meet.
-README.html         interactive site; embeds a JavaScript port of the transpiler ("PExLT").
+index.html          interactive site (GitHub Pages); embeds a JavaScript port of the transpiler ("PExLT").
 brand/              logos and brand guidance.
 ```
 
@@ -56,7 +56,7 @@ same PR:
 1. **`src/PExL.Core`** — the lexer/parser/emitter (or `Decompile/` for the reverse direction).
 2. **`tests/PExL.Core.Tests`** — add/adjust golden cases. New behavior needs a test.
 3. **`src/PExL.Editor.Web/pexl.lang.js`** — vocabulary for highlighting, completions, hovers.
-4. **`README.html`** — the in-browser transpiler `PExLT` is a faithful port of the C# engine;
+4. **`index.html`** — the in-browser transpiler `PExLT` is a faithful port of the C# engine;
    mirror grammar/emit changes here so the playground stays accurate.
 5. **`docs/language-spec.md`** and the README cheat sheet / glossary — keep docs truthful.
 

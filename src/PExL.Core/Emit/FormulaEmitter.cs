@@ -15,8 +15,16 @@ namespace PExL.Core.Emit
     public sealed class FormulaEmitter
     {
         private readonly Dictionary<string, Expr> _binds = new Dictionary<string, Expr>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _globals = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public void Bind(string name, Expr expr) => _binds[name] = expr;
+
+        /// <summary>
+        /// Register a document-level global (declared via <c>MakeGlobal(...) :: NAME</c>).
+        /// Unlike a <c>::</c> bind, a global is emitted verbatim as its Excel Defined
+        /// Name rather than being inlined.
+        /// </summary>
+        public void DefineGlobal(string name) => _globals.Add(name);
 
         public EmitResult Emit(Expr e)
         {
@@ -40,8 +48,11 @@ namespace PExL.Core.Emit
 
         private EmitResult EmitName(NameRef nr)
         {
+            // A global is emitted verbatim — Excel resolves the Defined Name natively.
+            if (_globals.Contains(nr.Name))
+                return new EmitResult(nr.Name);
             if (!_binds.TryGetValue(nr.Name, out var expr))
-                throw new PExLException($"Unknown name '{nr.Name}'. Did you bind it with '::' first?", nr.Line, nr.Column);
+                throw new PExLException($"Unknown name '{nr.Name}'. Bind it with '::', or declare it with MakeGlobal(...) :: {nr.Name} first.", nr.Line, nr.Column);
             return Emit(expr);
         }
 
@@ -163,6 +174,11 @@ namespace PExL.Core.Emit
 
                 case "raw": return EmitRaw(c);
                 case "legacy": return EmitLegacy(c);
+
+                case "makeGlobal":
+                    throw new PExLException("MakeGlobal(...) must be named with '::', e.g. MakeGlobal(0.2) :: TaxRate", c.Line, c.Column);
+                case "showGlobals":
+                    throw new PExLException("ShowGlobals() is a console command — put it on its own line, not inside a formula.", c.Line, c.Column);
 
                 default:
                     throw new PExLException($"Unknown verb '{c.Verb}'. Use raw(\"{c.Verb.ToUpperInvariant()}\", ...) to call an Excel function directly.", c.Line, c.Column);

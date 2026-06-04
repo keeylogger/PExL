@@ -326,6 +326,35 @@ raw("SUMPRODUCT", A1:A10, B1:B10)   -> =SUMPRODUCT(A1:A10,B1:B10)   (any functio
 legacy.vlookup(D2, A1:B100, 2)      -> =VLOOKUP(D2,A1:B100,2,FALSE)  (deprecated, namespaced)
 ```
 
+### 6.9 Globals (document variables)
+
+`MakeGlobal(EXPRESSION) :: NAME` promotes a value, cell or range to a **workbook-level
+global** — a native Excel **Defined Name** (workbook scope). It must be named with `::`;
+an unnamed `MakeGlobal(...)` is an error. Synonyms: `global`, `defineGlobal`, `setGlobal`.
+
+| PExL                              | Effect                                                          |
+| --------------------------------- | -------------------------------------------------------------- |
+| `MakeGlobal(0.2) :: TaxRate`      | Defined Name `TaxRate` refers to `=0.2`                         |
+| `MakeGlobal(A2:A100) :: SalesQ1`  | Defined Name `SalesQ1` refers to `=$A$2:$A$100` (auto-locked)  |
+| `MakeGlobal(B1 - C1) :: Margin`   | Defined Name `Margin` refers to `=B1-C1`                        |
+| `MakeGlobal(0.2) :: TaxRate -> A1`| also drops `=TaxRate` into `A1`                                 |
+
+- A **bare cell/range** inner expression is absolutized (as if wrapped in `fixed(...)`)
+  so the name doesn't shift when referenced from different cells. Constants and formulas
+  are emitted as written.
+- Referencing a declared global elsewhere emits the **name verbatim** (e.g.
+  `sum(SalesQ1) * TaxRate` → `=SUM(SalesQ1)*TaxRate`), unlike a `::` bind which is
+  inlined. A global may reference earlier globals.
+- Because the output is a standard Defined Name, globals persist in the workbook and keep
+  working for recipients who don't have the add-in.
+
+**Console commands.** `ShowGlobals()` is not a formula — it is a console command that the
+add-in intercepts to open the **globals manager** (view / edit refers-to / rename /
+delete). It produces no cell output. The manager lists **only PExL-created globals**
+(tracked in a `CustomXMLPart` registry); the user's own Excel named ranges are never
+shown or modified. Synonyms: `globals`, `listGlobals`. Using `MakeGlobal`/`ShowGlobals`
+inside a formula value is an error.
+
 ---
 
 ## 7. Emission rules
@@ -334,6 +363,8 @@ legacy.vlookup(D2, A1:B100, 2)      -> =VLOOKUP(D2,A1:B100,2,FALSE)  (deprecated
   expression, so formulas work in every Excel version. A "use LET when supported"
   setting can instead emit `=LET(name, expr, ...)` when a bind is reused inside a
   single output cell (Excel 365/2021+).
+- **Globals (`MakeGlobal`) are persisted, not inlined.** They become workbook Defined
+  Names and are emitted verbatim by name wherever referenced (see §6.9).
 - **Invariant formulas.** PExL always emits with `,` separators and injects via
   `Range.Formula2`, letting Excel localize the display. Behavior is tested under
   non-US locales (e.g. `pl-PL`, which displays `;`).
@@ -357,7 +388,9 @@ round-tripping without needing the (later-phase) formula decompiler.
 
 ```ebnf
 program     = { statement } ;
-statement   = expression [ "::" name ] [ "->" target ] ;
+statement   = expression [ "::" name ] [ "->" target ]
+            | "MakeGlobal" "(" expression ")" "::" name [ "->" target ]
+            | "ShowGlobals" "(" ")" ;
 expression  = pipeline ;
 pipeline    = term { "|>" verbcall } ;
 term        = literal | reference | verbcall | "(" expression ")" | unary | binary ;

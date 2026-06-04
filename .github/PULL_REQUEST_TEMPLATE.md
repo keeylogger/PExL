@@ -19,7 +19,7 @@
 - [ ] `dotnet build PExL.sln -c Release -p:Platform=x64` succeeds
 - [ ] `dotnet test` passes (added/updated golden tests for behavior changes)
 - [ ] If the language changed, I updated **all** of: `PExL.Core`, `pexl.lang.js`,
-      the `PExLT` port in `README.html`, `docs/language-spec.md`, and the tests
+      the `PExLT` port in `index.html`, `docs/language-spec.md`, and the tests
 - [ ] Docs / cheat sheet / glossary updated where relevant
 - [ ] No secrets, and no `bin/`/`obj/` artifacts committed
 

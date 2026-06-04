@@ -65,7 +65,9 @@
     fixed:       { sig: "fixed(ref)", doc: "Lock a reference with absolutes ($A$1)." },
     Date:        { sig: "Date(\"2024-01-31\", locale)", doc: "Parse a date from text." },
     raw:         { sig: "raw(\"EXCELFUNC\", args...)", doc: "Escape hatch: emit a native Excel function verbatim." },
-    legacy:      { sig: "legacy.FUNC(args...)", doc: "Escape hatch: call any legacy Excel function by name." }
+    legacy:      { sig: "legacy.FUNC(args...)", doc: "Escape hatch: call any legacy Excel function by name." },
+    MakeGlobal:  { sig: "MakeGlobal(value) :: Name", doc: "Save a value, cell or range as a document-level **global** (a native Excel Defined Name). Reuse it anywhere by name. e.g. `MakeGlobal(0.2) :: TaxRate`." },
+    ShowGlobals: { sig: "ShowGlobals()", doc: "Open the manager listing your PExL globals — view, edit, rename or delete them." }
   };
 
   const VERB_NAMES = Object.keys(VERBS);

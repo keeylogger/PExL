@@ -7,7 +7,7 @@ PExL transpiles elegant, English-like code into native Excel formulas.
 
 `take this → do that → put it there`
 
-[Quick start](#quick-start) · [Why PExL](#why-pexl) · [Cheat sheet](#cheat-sheet) · [How it works](#how-it-works) · [Building](#building) · [FAQ](#faq)
+[Quick start](#quick-start) · [Why PExL](#why-pexl) · [Cheat sheet](#cheat-sheet) · [Globals](#globals--name-it-once-reuse-everywhere) · [How it works](#how-it-works) · [Building](#building) · [FAQ](#faq)
 
 📖 **Full docs, glossary, tutorial & live playground →** [**keeylogger.github.io/PExL**](https://keeylogger.github.io/PExL/)
 
@@ -77,6 +77,7 @@ without re-counting parentheses. 🎯
 | Cryptic nested formulas nobody can maintain          | Pipelines that read top-to-bottom like sentences   |
 | `VLOOKUP` vs `INDEX/MATCH` vs `XLOOKUP` confusion     | One `find ... within ... thenReturn ...`           |
 | "What does this formula even do?"                    | Your original PExL is saved with the cell          |
+| Copy-pasting the same value/range into every cell    | `MakeGlobal(...) :: Name` — define once, reuse it  |
 | Web add-ins blocked by IT                            | Runs fully offline via Excel-DNA / COM             |
 
 ---
@@ -128,11 +129,33 @@ Prefer to build it yourself? See [Building](#-building).
 | Unique     | `unique(R)`                                       | `UNIQUE(R)`                            |
 | Date       | `addMonths(A2, 3)`                                | `EDATE(A2,3)`                          |
 | Round      | `round(A2, 2)`                                    | `ROUND(A2,2)`                          |
+| Global     | `MakeGlobal(0.2) :: TaxRate`                      | Defined Name `TaxRate`                 |
 | Anything   | `raw("FUNC", ...)`                                | `=FUNC(...)`                           |
 
 👉 The full reference — **every symbol, keyword and verb**, plus a tutorial and a live
 playground — lives in the [interactive docs](https://keeylogger.github.io/PExL/) and
 [`docs/language-spec.md`](docs/language-spec.md).
+
+---
+
+## Globals — name it once, reuse everywhere
+
+Repeatedly referencing the same rate, range or sub-formula? Promote it to a **global**
+with `MakeGlobal(value) :: Name`. PExL saves it as a native Excel **Defined Name**, so it
+persists in the workbook and is reusable from any cell — even for recipients without the
+add-in.
+
+```pexl
+MakeGlobal(0.2)      :: TaxRate     // a constant
+MakeGlobal(A2:A100)  :: SalesQ1     // a range (auto-locked to $A$2:$A$100)
+
+sum(SalesQ1) * TaxRate -> C2        // → =SUM(SalesQ1)*TaxRate
+```
+
+Run `ShowGlobals()` (or click **Globals** in the editor) to open a manager that lists
+**only your PExL globals** — view, edit, rename or delete them. Your own Excel named
+ranges are never shown or touched. Unlike `::` (a script-local alias that's inlined at
+compile time), a global is a real, saved name. 🌍
 
 ---
 
@@ -233,6 +256,11 @@ transpiler work, but the editor/docs panes (which load loose web assets) need th
 **Can I still use functions PExL doesn't have a verb for?**
 Yes — `raw("ANYFUNCTION", args...)` reaches all ~460 of Excel's functions, and
 `legacy.vlookup(...)` calls classic functions by name.
+
+**Can I reuse one value or range across many cells?**
+Yes — `MakeGlobal(value) :: Name` saves it as a workbook [global](#globals--name-it-once-reuse-everywhere)
+(a native Excel Defined Name). Reference it by name anywhere; manage your PExL globals
+with `ShowGlobals()`.
 
 **Which Excel versions are supported?**
 Excel for Windows, 64-bit (2016+). Some verbs (`filter`, `sort`, `unique`, `XLOOKUP`)

@@ -69,6 +69,49 @@
     .err { color: var(--err); white-space: pre-wrap; font-family: Consolas, monospace; }
     .hint { color: var(--muted); }
     .applied { color: var(--accent); }
+    .row .gname { color: var(--accent2); font-weight: 600; }
+    .row .gtag { color: var(--muted); font-size: 11px; margin-right: 6px; }
+
+    /* ---- globals manager modal ---- */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 50;
+      background: rgba(0,0,0,.45); align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      width: min(640px, 94vw); max-height: 82vh; display: flex; flex-direction: column;
+      box-shadow: 0 16px 54px rgba(0,0,0,.45);
+    }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      font-weight: 600; color: var(--accent);
+    }
+    .modal-head button { background: transparent; color: var(--muted); padding: 2px 8px; }
+    .modal-head button:hover { color: var(--fg); }
+    .modal-body { padding: 10px 14px; overflow: auto; }
+    .modal-foot { padding: 9px 14px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted); }
+    .modal-foot code { background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+    .gm-head-row, .gm-row {
+      display: grid; grid-template-columns: 1fr 1.5fr auto; gap: 8px; align-items: center;
+    }
+    .gm-head-row {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+      padding-bottom: 5px; border-bottom: 1px solid var(--border);
+    }
+    .gm-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .gm-name { font-weight: 600; font-family: "Cascadia Code", Consolas, monospace; word-break: break-all; }
+    .gm-val { font-size: 11px; color: var(--muted); }
+    .gm-row input.gm-ref {
+      width: 100%; background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+      border-radius: 4px; padding: 4px 6px; font-family: Consolas, monospace; font-size: 12px;
+    }
+    .gm-actions { display: flex; gap: 6px; }
+    .gm-actions button { padding: 4px 8px; font-size: 12px; }
+    .gm-del { background: var(--err); }
+    #gmEmpty { color: var(--muted); font-size: 13px; padding: 10px 0; }
+    #gmEmpty code { background: var(--panel); padding: 1px 5px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -77,6 +120,7 @@
     <button id="btnTheme" type="button" title="Switch between light and dark mode">Dark</button>
     <label class="toggle"><input type="checkbox" id="insertMode" /> Use live cell refs</label>
     <label class="toggle"><input type="checkbox" id="staticMode" /> Paste as values</label>
+    <button class="ghost" id="btnGlobals" type="button" title="Manage PExL globals (or run ShowGlobals())">Globals</button>
     <button class="secondary" id="btnCompile">Preview</button>
     <button id="btnApply">Apply &#8594; cell</button>
   </header>
@@ -93,6 +137,25 @@
 
   <div id="out">
     <span class="hint">Write PExL above, then <b>Preview</b> to see the Excel formula, or <b>Apply</b> to write it straight to the cell.</span>
+  </div>
+
+  <div id="globalsModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <span>PExL Globals</span>
+        <button id="gmClose" type="button" title="Close">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <div class="gm-head-row"><span>Name</span><span>Refers to</span><span></span></div>
+        <div id="gmRows"></div>
+        <div id="gmEmpty" style="display:none">No globals yet. Create one with <code>MakeGlobal(0.2) :: TaxRate</code>, then Apply.</div>
+      </div>
+      <div class="modal-foot">
+        These are <b>PExL globals</b> only — your own Excel named ranges aren't touched. Editing
+        <i>Refers to</i> and Save, or Delete, updates the workbook live. <code>::</code> binds are
+        script-local and don't appear here.
+      </div>
+    </div>
   </div>
 
   <script src="pexl.lang.js"></script>
@@ -202,16 +265,71 @@
     }
     fallback.addEventListener("input", resetLiveRef);
 
-    function renderPreview(cells) {
-      const rows = (!cells || !cells.length)
-        ? '<span class="hint">Nothing to preview.</span>'
-        : cells.map(c =>
-            '<div class="row"><span class="tgt">' + escapeHtml(c.target || "(active cell)") +
-            '</span><span class="arrow">&#8592;</span><span class="formula">' +
-            escapeHtml(c.formula) + '</span></div>').join("");
-      out.innerHTML = rows;
+    function renderPreview(cells, globals) {
+      const gRows = (globals || []).map(g =>
+        '<div class="row"><span class="gtag">global</span><span class="gname">' +
+        escapeHtml(g.name) + '</span><span class="arrow">&#8592;</span><span class="formula">' +
+        escapeHtml(g.formula) + '</span></div>').join("");
+      const cRows = cells.map(c =>
+        '<div class="row"><span class="tgt">' + escapeHtml(c.target || "(active cell)") +
+        '</span><span class="arrow">&#8592;</span><span class="formula">' +
+        escapeHtml(c.formula) + '</span></div>').join("");
+      const hasAny = (cells && cells.length) || (globals && globals.length);
+      out.innerHTML = hasAny ? (gRows + cRows) : '<span class="hint">Nothing to preview.</span>';
     }
     function escapeHtml(s) { return (s || "").replace(/[&<>]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
+
+    // ---- globals manager ----
+    const globalsModal = document.getElementById("globalsModal");
+    function openGlobals() { send({ type: "getGlobals" }); globalsModal.classList.add("open"); }
+    function closeGlobals() { globalsModal.classList.remove("open"); }
+
+    function renderGlobals(items) {
+      const rows = document.getElementById("gmRows");
+      const empty = document.getElementById("gmEmpty");
+      rows.innerHTML = "";
+      if (!items || !items.length) { empty.style.display = "block"; return; }
+      empty.style.display = "none";
+      items.forEach(it => {
+        const row = document.createElement("div");
+        row.className = "gm-row";
+
+        const name = document.createElement("div");
+        name.className = "gm-name";
+        const val = document.createElement("div");
+        val.className = "gm-val";
+        val.textContent = (it.value === "" || it.value == null) ? "" : ("= " + it.value);
+        name.textContent = it.name;
+        const nameWrap = document.createElement("div");
+        nameWrap.appendChild(name); nameWrap.appendChild(val);
+
+        const ref = document.createElement("input");
+        ref.className = "gm-ref"; ref.value = it.refersTo || ""; ref.spellcheck = false;
+
+        const actions = document.createElement("div");
+        actions.className = "gm-actions";
+        const save = document.createElement("button");
+        save.textContent = "Save";
+        save.onclick = () => {
+          let r = ref.value.trim();
+          if (r && r[0] !== "=") r = "=" + r;
+          send({ type: "updateGlobal", name: it.name, refersTo: r });
+        };
+        const ren = document.createElement("button");
+        ren.className = "secondary"; ren.textContent = "Rename";
+        ren.onclick = () => {
+          const nn = prompt("Rename global '" + it.name + "' to:", it.name);
+          if (nn && nn.trim() && nn.trim() !== it.name) send({ type: "renameGlobal", name: it.name, newName: nn.trim() });
+        };
+        const del = document.createElement("button");
+        del.className = "gm-del"; del.textContent = "Delete";
+        del.onclick = () => { if (confirm("Delete global '" + it.name + "'? Formulas using it will show #NAME?.")) send({ type: "deleteGlobal", name: it.name }); };
+
+        actions.appendChild(save); actions.appendChild(ren); actions.appendChild(del);
+        row.appendChild(nameWrap); row.appendChild(ref); row.appendChild(actions);
+        rows.appendChild(row);
+      });
+    }
 
     if (host) {
       host.addEventListener("message", function (ev) {
@@ -219,10 +337,15 @@
         switch (msg.type) {
           case "insertRef": insertRef(msg.address); break;
           case "setCode": setCode(msg.code); banner.style.display = "none"; break;
-          case "preview": renderPreview(msg.cells); break;
+          case "preview": renderPreview(msg.cells, msg.globals); break;
+          case "previewForApply": renderPreview(msg.cells, msg.globals); break;
+          case "globals": renderGlobals(msg.items); globalsModal.classList.add("open"); break;
           case "applied":
-            out.innerHTML = '<span class="applied">Applied ' + msg.count + ' item(s) to the sheet'
-              + (msg.asStatic ? ' as static values.' : '.') + '</span>';
+            var bits = [];
+            if (msg.count) bits.push(msg.count + " formula(s)");
+            if (msg.globals) bits.push(msg.globals + " global(s)");
+            out.innerHTML = '<span class="applied">Applied ' + (bits.length ? bits.join(" + ") : "0 items")
+              + ' to the workbook' + (msg.asStatic ? ' as static values.' : '.') + '</span>';
             break;
           case "storedCode":
             storedCode = msg.code;
@@ -244,6 +367,9 @@
     document.getElementById("insertMode").onchange = (e) => { resetLiveRef(); send({ type: "insertMode", on: e.target.checked }); };
     document.getElementById("btnLoadStored").onclick = () => { if (storedCode != null) setCode(storedCode); banner.style.display = "none"; };
     document.getElementById("btnDismiss").onclick = () => { banner.style.display = "none"; };
+    document.getElementById("btnGlobals").onclick = openGlobals;
+    document.getElementById("gmClose").onclick = closeGlobals;
+    globalsModal.addEventListener("click", (e) => { if (e.target === globalsModal) closeGlobals(); });
   </script>
 </body>
 </html>

@@ -30,8 +30,8 @@
 *.ico     binary
 *.zip     binary
 
-# Treat README.html as a normal text/HTML file for diffs
-README.html linguist-language=HTML
+# Treat index.html as a normal text/HTML file for diffs
+index.html linguist-language=HTML
 
 # Keep the brand SVGs out of language stats (they're assets, not code)
 brand/*.svg linguist-detectable=false

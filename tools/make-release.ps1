@@ -61,7 +61,7 @@ if (Test-Path $wv2) { Copy-Item $wv2 $stage } else { Write-Warning 'WebView2Load
 $web = Join-Path $out 'web'
 if (Test-Path $web) { Copy-Item $web (Join-Path $stage 'web') -Recurse } else { Write-Warning 'web\ folder not found' }
 
-if (Test-Path 'README.html')        { Copy-Item 'README.html' $stage }
+if (Test-Path 'index.html')         { Copy-Item 'index.html' $stage }
 if (Test-Path 'release/INSTALL.txt') { Copy-Item 'release/INSTALL.txt' $stage }
 
 # Artifact 1: full ZIP (corporate/restricted — everything works).

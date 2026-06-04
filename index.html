@@ -55,6 +55,10 @@
   .btn{padding:11px 20px;border-radius:10px;font-weight:600;font-size:15px;cursor:pointer;border:1px solid var(--border)}
   .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
   .btn.secondary{background:var(--panel);color:var(--fg)}
+  .ghlink{display:inline-flex;align-items:center;gap:8px;margin-top:18px;color:var(--muted);
+    font-size:14px;font-weight:600;text-decoration:none;transition:color .15s}
+  .ghlink:hover{color:var(--fg)}
+  .ghlink svg{width:20px;height:20px;fill:currentColor}
 
   section{padding:46px 0;border-top:1px solid var(--border)}
   section h2{font-size:30px;margin:0 0 6px}
@@ -230,6 +234,12 @@
     <a class="btn primary" href="#play">Try the playground</a>
     <a class="btn secondary" href="#tutorial">Learn in 5 minutes</a>
   </div>
+  <div style="text-align:center">
+    <a class="ghlink" href="https://github.com/keeylogger/PExL" target="_blank" rel="noopener" aria-label="View PExL on GitHub">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      View the project on GitHub
+    </a>
+  </div>
 </div></header>
 
 <section id="why"><div class="wrap">
@@ -400,7 +410,8 @@ var PExLT = (function(){
     today:[], now:[], addDays:[], addMonths:[], addYears:[], yearOf:["year"], monthOf:["month"],
     dayOf:["day"], weekdayOf:["weekday"], dateDiff:["datedif"], round:[], abs:[], sqrt:[], power:["pow"],
     mod:["modulo","remainder"], filter:[], sort:[], unique:["distinct"], take:["first"],
-    col:["column"], row:[], cell:[], fixed:["lock","absolute"], "Date":[], raw:["formula"], legacy:[]
+    col:["column"], row:[], cell:[], fixed:["lock","absolute"], "Date":[], raw:["formula"], legacy:[],
+    makeGlobal:["global","defineGlobal","setGlobal"], showGlobals:["showGlobal","globals","listGlobals"]
   };
   var PREP_RAW = { within:"within", inRange:"within", "in":"within", thenReturn:"thenReturn",
     returnFrom:"thenReturn", bringBack:"thenReturn", getFrom:"thenReturn", "with":"with", by:"by",
@@ -673,6 +684,7 @@ var PExLT = (function(){
     throw new PErr("Cannot parse date '"+raw+"'. Use ISO form like #2024-01-31#."); }
   function prec(op){ if(op==="^")return 4; if(op==="*"||op==="/")return 3; if(op==="+"||op==="-")return 2; return 1; }
   Emitter.prototype.bind=function(name,expr){ this.binds[name.toLowerCase()]=expr; };
+  Emitter.prototype.defineGlobal=function(name){ if(!this.globals)this.globals={}; this.globals[name.toLowerCase()]=true; };
   Emitter.prototype.named=function(c,label){ for(var i=0;i<c.named.length;i++)if(c.named[i].label===label)return c.named[i].value; return null; };
   Emitter.prototype.emit=function(e){
     switch(e.k){
@@ -682,7 +694,7 @@ var PExLT = (function(){
       case "empty": return R('""');
       case "date": return R(dateFrom(e.raw));
       case "ref": return R(e.text);
-      case "name": { var b=this.binds[e.name.toLowerCase()]; if(b===undefined)throw new PErr("Unknown name '"+e.name+"'. Did you bind it with '::' first?"); return this.emit(b); }
+      case "name": { if(this.globals&&this.globals[e.name.toLowerCase()])return R(e.name); var b=this.binds[e.name.toLowerCase()]; if(b===undefined)throw new PErr("Unknown name '"+e.name+"'. Bind it with '::', or declare it with MakeGlobal(...) :: "+e.name+" first."); return this.emit(b); }
       case "un": return this.emitUnary(e);
       case "bin": return this.emitBinary(e);
       case "if": return this.emitIf(e);
@@ -768,6 +780,8 @@ var PExLT = (function(){
       case "Date": { if(c.positional.length>0&&c.positional[0].k==="str")return R(dateFrom(c.positional[0].value)); throw new PErr('Date(...) expects a date string like Date("2024-01-01")'); }
       case "raw": { if(c.positional.length===0||c.positional[0].k!=="str")throw new PErr('raw(...) expects a function name first, e.g. raw("SUMPRODUCT", ...)'); var fn=c.positional[0].value.toUpperCase(); return R(fn+"("+c.positional.slice(1).map(function(a){return self.emit(a).f;}).join(",")+")"); }
       case "legacy": { if(!c.modifier)throw new PErr("legacy.* expects a function, e.g. legacy.vlookup(...)"); var name=c.modifier.toUpperCase(); var args=c.positional.map(function(a){return self.emit(a).f;}); if((name==="VLOOKUP"||name==="HLOOKUP")&&args.length===3)args.push("FALSE"); return R(name+"("+args.join(",")+")"); }
+      case "makeGlobal": throw new PErr("MakeGlobal(...) must be named with '::', e.g. MakeGlobal(0.2) :: TaxRate");
+      case "showGlobals": throw new PErr("ShowGlobals() is a console command — put it on its own line, not inside a formula.");
       default: throw new PErr("Unknown verb '"+c.verb+"'. Use raw(\""+c.verb.toUpperCase()+"\", ...) to call an Excel function directly.");
     }
   };
@@ -857,7 +871,23 @@ var PExLT = (function(){
   // ----- facade (Transpiler.cs) -----
   function transpile(code){
     var toks=lex(code); var prog=new Parser(toks).parseProgram(); var em=new Emitter(); var cells=[];
+    cells.globals=[]; cells.commands=[];
     prog.forEach(function(st){
+      var ex=st.expr;
+      // MakeGlobal(EXPR) :: NAME  — declare a persistent workbook global.
+      if(ex&&ex.k==="verb"&&ex.verb==="makeGlobal"){
+        if(st.bind==null)throw new PErr("MakeGlobal(...) must be named, e.g. MakeGlobal(0.2) :: TaxRate");
+        if(ex.positional.length!==1)throw new PErr("MakeGlobal(...) takes exactly one value, e.g. MakeGlobal(A2:A100) :: SalesQ1");
+        em.defineGlobal(st.bind);
+        var inner=ex.positional[0];
+        var toEmit=(inner.k==="ref")?{k:"verb",verb:"fixed",modifier:null,positional:[inner],named:[]}:inner;
+        cells.globals.push({name:st.bind,formula:"="+em.emit(toEmit).f});
+        if(st.target!=null)cells.push({target:st.target,formula:st.bind});
+        return;
+      }
+      // ShowGlobals() — console command, no formula emitted.
+      if(ex&&ex.k==="verb"&&ex.verb==="showGlobals"){ cells.commands.push({name:"showGlobals"}); return; }
+
       if(st.bind!=null)em.bind(st.bind,st.expr);
       if(st.target!=null){ cells.push({target:st.target,formula:em.emit(st.expr).f}); }
       else if(st.bind==null){ cells.push({target:null,formula:em.emit(st.expr).f}); }
@@ -875,13 +905,25 @@ function renderOut(code){
   try{ cells=transpile(code); }
   catch(e){ LAST_CELLS=[]; out.innerHTML='<span style="color:var(--red)">'+esc(e.message||"Parse error")+'</span>'; return; }
   LAST_CELLS=cells;
-  if(!cells.length){out.innerHTML='<span class="tok-cm">Write PExL on the left…</span>';return;}
-  out.innerHTML=cells.map((c,i)=>{
+  const globals=cells.globals||[], commands=cells.commands||[];
+  const parts=[];
+  globals.forEach(g=>{
+    parts.push('<span class="cellrow"><span class="tok-cm">global</span> <span class="tok-rf">'+esc(g.name)+
+      '</span>  '+hlExcel(g.formula)+'</span>');
+  });
+  cells.forEach((c,i)=>{
     const f="="+c.formula;
     const label=c.target?'<span class="tok-rf">'+esc(c.target)+'</span>:  ':'';
-    return '<span class="cellrow">'+label+hlExcel(f)+
-      '<button class="cellcopy" data-i="'+i+'" title="Copy this formula">copy</button></span>';
-  }).join("\n");
+    parts.push('<span class="cellrow">'+label+hlExcel(f)+
+      '<button class="cellcopy" data-i="'+i+'" title="Copy this formula">copy</button></span>');
+  });
+  if(commands.length){
+    const names=globals.map(g=>g.name);
+    parts.push('<span class="cellrow tok-cm">// ShowGlobals() opens the globals manager in Excel'+
+      (names.length?' — this snippet defines: '+esc(names.join(", ")):'')+'</span>');
+  }
+  if(!parts.length){out.innerHTML='<span class="tok-cm">Write PExL on the left…</span>';return;}
+  out.innerHTML=parts.join("\n");
 }
 function cellText(c){ return (c.target?c.target+":  ":"")+"="+c.formula; }
 function flash(btn,label){ const o=btn.textContent; btn.textContent=label||"copied"; btn.classList.add("ok");
@@ -895,6 +937,7 @@ const EXAMPLES=[
   {name:"Conditional", pexl:'if B2 > 10 then "High" else "Low" -> C2'},
   {name:"Sum where", pexl:'sumWhere(A1:A10, C1:C10 = "West") -> F2'},
   {name:"Combine", pexl:'combine(A2, B2) with(" ") -> C2'},
+  {name:"Globals", pexl:'MakeGlobal(0.2) :: TaxRate\nMakeGlobal(A2:A100) :: SalesQ1\nsum(SalesQ1) * TaxRate -> C2'},
   {name:"Escape hatch", pexl:'raw("SUMPRODUCT", A1:A10, B1:B10) -> D2'}
 ];
 const TUTORIAL=[
@@ -911,6 +954,8 @@ const TUTORIAL=[
    p:'check\n  B2 >= 90 then "A"\n  B2 >= 80 then "B"\n  else "C"\n-> D2', x:'=IFS(B2>=90,"A",B2>=80,"B",TRUE,"C")'},
   {t:"Conditional sums", d:"Readable SUMIFS — list your conditions naturally.",
    p:'sumWhere(A1:A10, B1:B10 > 100 and C1:C10 = "West")', x:'=SUMIFS(A1:A10,B1:B10,">100",C1:C10,"West")'},
+  {t:"Globals — name it once, reuse everywhere", d:"MakeGlobal(value) :: Name saves a value, cell or range as a workbook-level variable (a native Excel Defined Name). Reference it by name from any cell. Run ShowGlobals() to view, edit, rename or delete your PExL globals.",
+   p:'MakeGlobal(0.2) :: TaxRate\nMakeGlobal(A2:A100) :: SalesQ1\nsum(SalesQ1) * TaxRate -> C2', x:'TaxRate ← =0.2\nSalesQ1 ← =$A$2:$A$100\nC2:  =SUM(SalesQ1)*TaxRate'},
   {t:"The escape hatch", d:"Any of Excel’s other ~460 functions are one call away.",
    p:'raw("SUMPRODUCT", A1:A10, B1:B10)\nlegacy.vlookup(D2, A1:B100, 2)', x:'=SUMPRODUCT(A1:A10,B1:B10)\n=VLOOKUP(D2,A1:B100,2,FALSE)'}
 ];
@@ -952,6 +997,7 @@ const CHEAT=[
   ["Date add","addMonths(A2, 3)","EDATE(A2,3)"],
   ["Date diff","dateDiff(A2, today(), \"y\")","DATEDIF(A2,TODAY(),\"y\")"],
   ["Round","round(A2, 2)","ROUND(A2,2)"],
+  ["Global","MakeGlobal(0.2) :: TaxRate","Defined Name TaxRate"],
   ["Anything","raw(\"FUNC\", ...)","=FUNC(...)"]
 ];
 const TEMPLATES=[
@@ -1067,6 +1113,11 @@ const GLOSSARY=[
   {group:"References & helpers", items:[
     {t:"col / row / cell", k:"helper", d:"Build references from letters/numbers.", p:'cell("C", 2) -> D1', x:'C2'},
     {t:"fixed", k:"helper", d:"Lock a reference with absolutes.", p:'fixed(A1:B2)', x:'$A$1:$B$2'}
+  ]},
+  {group:"Globals — document variables", items:[
+    {t:"MakeGlobal", k:"verb", d:"Save a value, cell or range as a workbook-level global — a native Excel Defined Name. Must be named with ::. Reference it by name from any cell; it persists in the file even for people without the add-in. Bare cell/range globals are absolutized so they don't shift. (Synonyms: global, defineGlobal, setGlobal.)", p:'MakeGlobal(0.2) :: TaxRate\nA1 * TaxRate -> B1', x:'TaxRate ← =0.2\nB1:  =A1*TaxRate'},
+    {t:"ShowGlobals", k:"command", d:"A console command (not a formula): opens the manager listing only your PExL globals, where you can view, edit (refers-to), rename or delete them. Your own Excel named ranges are never shown or touched. (Synonyms: globals, listGlobals.)", p:'ShowGlobals()', x:'opens the globals manager'},
+    {t:"global vs ::", k:"note", d:":: is a script-local alias inlined at compile time (nothing is saved). MakeGlobal persists a real, reusable name in the workbook."}
   ]},
   {group:"Escape hatches — reach any Excel function", items:[
     {t:"raw", k:"escape", d:"Emit any function verbatim, args in order.", p:'raw("SUMPRODUCT", A1:A10, B1:B10) -> C1', x:'=SUMPRODUCT(A1:A10,B1:B10)'},
