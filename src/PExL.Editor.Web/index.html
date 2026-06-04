@@ -103,6 +103,14 @@
     .gm-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
     .gm-name { font-weight: 600; font-family: "Cascadia Code", Consolas, monospace; word-break: break-all; }
     .gm-val { font-size: 11px; color: var(--muted); }
+    .gm-kind {
+      display: inline-block; font-size: 10px; font-weight: 600; line-height: 1.4;
+      padding: 0 6px; margin-right: 6px; border-radius: 999px;
+      background: var(--border); color: var(--fg); vertical-align: middle;
+    }
+    .gm-kind.k-err { background: #b3261e; color: #fff; }
+    .gm-kind.k-num { background: #1f6feb33; color: var(--fg); }
+    .gm-kind.k-txt { background: #8957e533; color: var(--fg); }
     .gm-row input.gm-ref {
       width: 100%; background: var(--panel); border: 1px solid var(--border); color: var(--fg);
       border-radius: 4px; padding: 4px 6px; font-family: Consolas, monospace; font-size: 12px;
@@ -298,7 +306,20 @@
         name.className = "gm-name";
         const val = document.createElement("div");
         val.className = "gm-val";
-        val.textContent = (it.value === "" || it.value == null) ? "" : ("= " + it.value);
+        if (it.kind) {
+          const badge = document.createElement("span");
+          badge.className = "gm-kind";
+          const k = String(it.kind).toLowerCase();
+          if (k.indexOf("error") >= 0) badge.classList.add("k-err");
+          else if (k.indexOf("number") >= 0 || k.indexOf("numbers") >= 0) badge.classList.add("k-num");
+          else if (k.indexOf("text") >= 0) badge.classList.add("k-txt");
+          badge.textContent = it.kind;
+          badge.title = "Current value type — check this before mixing globals in a formula.";
+          val.appendChild(badge);
+        }
+        const valTxt = document.createElement("span");
+        valTxt.textContent = (it.value === "" || it.value == null) ? "" : ("= " + it.value);
+        val.appendChild(valTxt);
         name.textContent = it.name;
         const nameWrap = document.createElement("div");
         nameWrap.appendChild(name); nameWrap.appendChild(val);

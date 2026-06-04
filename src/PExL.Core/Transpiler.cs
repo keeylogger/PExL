@@ -61,12 +61,24 @@ namespace PExL.Core
             "showGlobals", "showGlobal", "globals", "listGlobals"
         };
 
-        public static TranspileResult Transpile(string source)
+        public static TranspileResult Transpile(string source) => Transpile(source, null);
+
+        /// <summary>
+        /// Transpile, treating <paramref name="knownGlobals"/> as already-declared
+        /// document globals. This lets a snippet reference a global by name (e.g.
+        /// <c>Pi * 2</c>) without re-declaring it with <c>MakeGlobal</c> — the host
+        /// supplies the names that already live in the workbook.
+        /// </summary>
+        public static TranspileResult Transpile(string source, IEnumerable<string>? knownGlobals)
         {
             var tokens = new Lexer(source).Tokenize();
             var program = new Parser(tokens).ParseProgram();
             var emitter = new FormulaEmitter();
             var result = new TranspileResult();
+
+            if (knownGlobals != null)
+                foreach (var g in knownGlobals)
+                    if (!string.IsNullOrWhiteSpace(g)) emitter.DefineGlobal(g);
 
             foreach (var stmt in program.Statements)
             {
@@ -78,6 +90,7 @@ namespace PExL.Core
                             "MakeGlobal(...) must be named, e.g. MakeGlobal(0.2) :: TaxRate",
                             stmt.Expression.Line, stmt.Expression.Column);
 
+                    ValidateGlobalName(stmt.BindName!, stmt.Expression.Line, stmt.Expression.Column);
                     emitter.DefineGlobal(stmt.BindName!);
                     // A bare cell/range global is absolutized so the workbook name
                     // doesn't shift when referenced from different cells. Constants
@@ -121,6 +134,21 @@ namespace PExL.Core
             }
 
             return result;
+        }
+
+        // Reject names Excel will refuse as a Defined Name, with a friendly message
+        // instead of an opaque COM error at apply time.
+        private static void ValidateGlobalName(string name, int line, int column)
+        {
+            if (name.Length > 255)
+                throw new PExLException("Global name is too long (Excel allows at most 255 characters).", line, column);
+            if (string.Equals(name, "C", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "R", StringComparison.OrdinalIgnoreCase))
+                throw new PExLException($"'{name}' is reserved by Excel and can't be used as a global name.", line, column);
+            // A1 / AB12 / R1C1 styles collide with cell references.
+            if (System.Text.RegularExpressions.Regex.IsMatch(name, "^[A-Za-z]{1,3}[0-9]+$") ||
+                System.Text.RegularExpressions.Regex.IsMatch(name, "^[Rr][0-9]+[Cc][0-9]+$"))
+                throw new PExLException($"'{name}' looks like a cell reference; choose a different global name.", line, column);
         }
 
         private static bool TryGetGlobalInner(Expr expr, out Expr? inner)

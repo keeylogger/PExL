@@ -197,5 +197,35 @@ namespace PExL.Core.Tests
             Assert.Single(result.Commands);
             Assert.Equal("showGlobals", result.Commands[0].Name);
         }
+
+        // ---- cross-session globals (known globals supplied by the host) ----
+
+        [Fact]
+        public void KnownGlobal_ReferencedWithoutRedeclaring_EmitsVerbatim()
+        {
+            var result = Transpiler.Transpile("Pi * 3 -> A1", new[] { "Pi" });
+            Assert.Single(result.Cells);
+            Assert.Equal("A1", result.Cells[0].Target);
+            Assert.Equal("=Pi*3", result.Cells[0].Formula);
+        }
+
+        [Fact]
+        public void KnownGlobal_IsCaseInsensitive()
+        {
+            var result = Transpiler.Transpile("pi * 3 -> A1", new[] { "Pi" });
+            Assert.Equal("=pi*3", result.Cells[0].Formula);
+        }
+
+        [Fact]
+        public void UnknownName_StillErrors_WhenNotAKnownGlobal()
+        {
+            Assert.Throws<PExL.Core.Diagnostics.PExLException>(() => Transpiler.Transpile("Pi * 3 -> A1"));
+        }
+
+        [Fact]
+        public void MakeGlobal_ReservedName_Throws()
+        {
+            Assert.Throws<PExL.Core.Diagnostics.PExLException>(() => Transpiler.Transpile("MakeGlobal(1) :: C"));
+        }
     }
 }

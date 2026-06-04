@@ -869,9 +869,13 @@ var PExLT = (function(){
     if(cell[i]==="$")i++; s+="$"; while(i<cell.length&&/[0-9]/.test(cell[i])){s+=cell[i];i++;} return s; }
 
   // ----- facade (Transpiler.cs) -----
+  // Globals declared earlier in the session persist, mirroring how the add-in
+  // remembers workbook globals — so a later snippet can reference one by name.
+  var KNOWN_GLOBALS={};
   function transpile(code){
     var toks=lex(code); var prog=new Parser(toks).parseProgram(); var em=new Emitter(); var cells=[];
     cells.globals=[]; cells.commands=[];
+    Object.keys(KNOWN_GLOBALS).forEach(function(n){ em.defineGlobal(n); });
     prog.forEach(function(st){
       var ex=st.expr;
       // MakeGlobal(EXPR) :: NAME  — declare a persistent workbook global.
@@ -879,6 +883,7 @@ var PExLT = (function(){
         if(st.bind==null)throw new PErr("MakeGlobal(...) must be named, e.g. MakeGlobal(0.2) :: TaxRate");
         if(ex.positional.length!==1)throw new PErr("MakeGlobal(...) takes exactly one value, e.g. MakeGlobal(A2:A100) :: SalesQ1");
         em.defineGlobal(st.bind);
+        KNOWN_GLOBALS[st.bind.toLowerCase()]=st.bind;
         var inner=ex.positional[0];
         var toEmit=(inner.k==="ref")?{k:"verb",verb:"fixed",modifier:null,positional:[inner],named:[]}:inner;
         cells.globals.push({name:st.bind,formula:"="+em.emit(toEmit).f});

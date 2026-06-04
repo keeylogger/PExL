@@ -24,6 +24,11 @@ namespace PExL.AddIn.TaskPane
         private string _lastCode = string.Empty;
         private string? _pendingCode;
 
+        // Snapshot of the document globals already saved in the workbook, so a
+        // snippet can reference them by name without re-declaring MakeGlobal.
+        // An immutable array swapped by reference keeps cross-thread reads safe.
+        private volatile string[] _knownGlobals = System.Array.Empty<string>();
+
         /// <summary>Replace the editor contents (used by templates to pre-fill PExL).</summary>
         public void SetCode(string code)
         {
@@ -67,6 +72,7 @@ namespace PExL.AddIn.TaskPane
 
                 _ready = true;
                 if (_pendingCode != null) { Post(new { type = "setCode", code = _pendingCode }); _pendingCode = null; }
+                RefreshKnownGlobals();
             }
             catch (Exception ex)
             {
@@ -146,7 +152,7 @@ namespace PExL.AddIn.TaskPane
             _lastCode = code;
             try
             {
-                var result = Transpiler.Transpile(code);
+                var result = Transpiler.Transpile(code, _knownGlobals);
                 var cells = new object[result.Cells.Count];
                 for (int i = 0; i < result.Cells.Count; i++)
                     cells[i] = new { target = result.Cells[i].Target, formula = result.Cells[i].Formula };
@@ -167,6 +173,18 @@ namespace PExL.AddIn.TaskPane
                     {
                         ExcelInjector.Inject(result.Cells, result.Globals, code, asStatic);
                         Post(new { type = "applied", count = result.Cells.Count, globals = result.Globals.Count, asStatic });
+
+                        // Make the just-declared names referenceable immediately, then
+                        // reconcile against the workbook once the write settles.
+                        if (result.Globals.Count > 0)
+                        {
+                            var merged = new System.Collections.Generic.List<string>(_knownGlobals);
+                            foreach (var g in result.Globals)
+                                if (!merged.Exists(n => string.Equals(n, g.Name, StringComparison.OrdinalIgnoreCase)))
+                                    merged.Add(g.Name);
+                            _knownGlobals = merged.ToArray();
+                            RefreshKnownGlobals();
+                        }
                     }
                 }
             }
@@ -195,6 +213,16 @@ namespace PExL.AddIn.TaskPane
                     PostOnUi(new { type = "insertRef", address });
                     return;
                 }
+
+                // We're on the Excel main thread here, so refresh the globals
+                // snapshot directly — this also catches workbook switches and
+                // edits made outside the add-in.
+                try
+                {
+                    dynamic a = ExcelDnaUtil.Application;
+                    UpdateKnownGlobals(GlobalStore.List(a));
+                }
+                catch { /* ignore */ }
 
                 // Recall only makes sense for a single cell.
                 if (address.IndexOf(':') >= 0 || address.IndexOf(',') >= 0) return;
@@ -231,13 +259,35 @@ namespace PExL.AddIn.TaskPane
                 {
                     dynamic app = ExcelDnaUtil.Application;
                     var list = GlobalStore.List(app);
+                    UpdateKnownGlobals(list);
                     items = new object[list.Count];
                     for (int i = 0; i < list.Count; i++)
-                        items[i] = new { name = list[i].Name, refersTo = list[i].RefersTo, value = list[i].Value };
+                        items[i] = new { name = list[i].Name, refersTo = list[i].RefersTo, value = list[i].Value, kind = list[i].Kind };
                 }
                 catch { items = new object[0]; }
                 PostOnUi(new { type = "globals", items });
             });
+        }
+
+        /// <summary>Refresh the in-memory globals snapshot without opening the manager.</summary>
+        private void RefreshKnownGlobals()
+        {
+            ExcelAsyncUtil.QueueAsMacro(() =>
+            {
+                try
+                {
+                    dynamic app = ExcelDnaUtil.Application;
+                    UpdateKnownGlobals(GlobalStore.List(app));
+                }
+                catch { /* ignore */ }
+            });
+        }
+
+        private void UpdateKnownGlobals(System.Collections.Generic.List<GlobalInfo> list)
+        {
+            var names = new string[list.Count];
+            for (int i = 0; i < list.Count; i++) names[i] = list[i].Name;
+            _knownGlobals = names; // atomic reference swap
         }
 
         /// <summary>Run a global mutation on the macro thread, then refresh the manager.</summary>

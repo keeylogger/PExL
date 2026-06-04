@@ -14,6 +14,31 @@
     <RootNamespace>PExL.AddIn</RootNamespace>
     <AssemblyName>PExL.AddIn</AssemblyName>
     <ExcelAddInFileName>PExL</ExcelAddInFileName>
+
+    <!--
+      Emit PExL.AddIn.deps.json. .NET Framework projects don't generate it by
+      default, but ExcelDnaPack reads it to discover and EMBED managed
+      dependencies (PExL.Core, Newtonsoft.Json, WebView2 managed) into the packed
+      .xll. Without it, only PExL.AddIn is packed and PExL.Core fails to load.
+    -->
+    <GenerateDependencyFile>true</GenerateDependencyFile>
+
+    <!--
+      Only methods marked [ExcelFunction]/[ExcelCommand] are registered. This
+      add-in exposes no UDFs (it's ribbon + task pane), so this stops Excel-DNA
+      from scanning helper classes (ExcelInjector, GlobalStore, …) as worksheet
+      functions — which caused "Repeated function name: 'Create'" and spurious
+      PExL.Core load attempts during registration.
+    -->
+    <ExcelAddInExplicitExports>true</ExcelAddInExplicitExports>
+
+    <!--
+      Keep the native WebView2Loader.dll as a LOOSE file beside the .xll (copied
+      by the CopyWebView2Loader target below) instead of embedding it. Embedding
+      native deps would extract them to %TEMP% at load, re-tripping the Defender
+      ASR rule that the net48 target exists to avoid.
+    -->
+    <ExcelDnaPackNativeLibraryDependencies>false</ExcelDnaPackNativeLibraryDependencies>
   </PropertyGroup>
 
   <!-- WinForms framework references (reliable way to enable WinForms on net48 SDK-style). -->

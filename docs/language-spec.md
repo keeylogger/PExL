@@ -347,6 +347,30 @@ an unnamed `MakeGlobal(...)` is an error. Synonyms: `global`, `defineGlobal`, `s
   inlined. A global may reference earlier globals.
 - Because the output is a standard Defined Name, globals persist in the workbook and keep
   working for recipients who don't have the add-in.
+- **You only declare a global once.** After `MakeGlobal(...) :: NAME` has been applied, a
+  later, separate snippet may reference `NAME` directly (e.g. `Pi * 3 -> A1`) without
+  re-declaring it. The add-in supplies the workbook's existing global names to the
+  transpiler via the `Transpile(source, knownGlobals)` overload, so the name resolves
+  instead of raising *Unknown name*.
+- **Names that Excel would reject are caught up front** with a friendly message:
+  reserved `C`/`R`, cell-reference-like names (`A1`, `Q4`, `R1C1`), and names longer than
+  255 characters.
+
+> **`RefersTo` and the leading `=`.** Every Excel Defined Name stores its value as a
+> formula, so `MakeGlobal(3.14) :: Pi` is saved as `RefersTo = "=3.14"`. The `=` is just
+> how Excel records the literal — `Pi` still evaluates to the number `3.14`, so
+> `Pi * 2` → `6.28`. The value inside `MakeGlobal(...)` is otherwise preserved exactly:
+> the parser already distinguishes constants, references (absolutized) and formulas, so no
+> string rewriting is applied beyond locking bare references.
+
+**Type awareness (runtime, not static).** PExL is a transpiler: it emits native Excel
+formulas, and Excel performs the actual calculation and type coercion. PExL cannot know a
+cell's runtime contents at compile time, so it does not statically block, say, adding a
+text global to a number — Excel surfaces that as `#VALUE!` at calc time, which is the
+expected safety net. To help *before* that happens, the globals manager evaluates each
+global and shows its current **type** (Number, Text, Logical, Date, Blank, Error, or
+`Range r×c (numbers/text/mixed/errors)`). Every evaluation is wrapped in try/catch so a
+broken or `#REF!` global degrades to an `Error`/`Unknown` label rather than throwing.
 
 **Console commands.** `ShowGlobals()` is not a formula — it is a console command that the
 add-in intercepts to open the **globals manager** (view / edit refers-to / rename /

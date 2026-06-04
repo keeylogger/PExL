@@ -9,6 +9,13 @@ namespace PExL.AddIn.Interop
         public string Name { get; set; } = "";
         public string RefersTo { get; set; } = "";
         public string Value { get; set; } = "";
+
+        /// <summary>
+        /// A friendly description of the current value's type — e.g. "Number",
+        /// "Text", "Logical", "Date", "Blank", "Error", or "Range 99×1 (numbers)".
+        /// Lets the manager warn the user before they, say, sum text with numbers.
+        /// </summary>
+        public string Kind { get; set; } = "";
     }
 
     /// <summary>
@@ -52,7 +59,13 @@ namespace PExL.AddIn.Interop
                     var info = new GlobalInfo { Name = name };
                     try { info.RefersTo = (string)wb.Names[name].RefersTo; }
                     catch { continue; } // dropped from Excel by the user — skip
-                    info.Value = TryEvaluate(app, name);
+                    try
+                    {
+                        object v = app.Evaluate(name);
+                        info.Kind = KindOf(v);
+                        info.Value = DisplayValue(v);
+                    }
+                    catch { info.Kind = "Unknown"; info.Value = ""; }
                     list.Add(info);
                 }
             }
@@ -104,16 +117,55 @@ namespace PExL.AddIn.Interop
 
         // ---- registry (CustomXMLPart) ----
 
-        private static string TryEvaluate(dynamic app, string name)
+        /// <summary>Classify an evaluated value into a friendly type label.</summary>
+        private static string KindOf(object v)
         {
-            try
+            if (v == null || v is System.DBNull) return "Empty";
+            if (v is double || v is int || v is long || v is short || v is decimal || v is float) return "Number";
+            if (v is bool) return "Logical";
+            if (v is System.DateTime) return "Date";
+            if (v is string s) return s.StartsWith("#") ? "Error" : (s.Length == 0 ? "Blank" : "Text");
+            if (v is object[,] arr) return DescribeArray(arr);
+            return "Value";
+        }
+
+        private static string DescribeArray(object[,] arr)
+        {
+            int rows = arr.GetLength(0), cols = arr.GetLength(1);
+            bool num = false, text = false, err = false, blank = false;
+            foreach (var cell in arr)
             {
-                dynamic v = app.Evaluate(name);
-                if (v == null) return "";
-                string s = v.ToString();
-                return s.Length > 120 ? s.Substring(0, 120) + "…" : s;
+                if (cell == null || cell is System.DBNull) { blank = true; continue; }
+                if (cell is double || cell is int || cell is long || cell is short || cell is decimal || cell is float || cell is bool) num = true;
+                else if (cell is string cs)
+                {
+                    if (cs.StartsWith("#")) err = true;
+                    else if (cs.Length == 0) blank = true;
+                    else text = true;
+                }
+                else text = true;
             }
-            catch { return ""; }
+            string kind = err ? "errors" : (num && text) ? "mixed" : num ? "numbers" : text ? "text" : blank ? "blank" : "empty";
+            return $"Range {rows}×{cols} ({kind})";
+        }
+
+        /// <summary>A short, human-readable rendering of the evaluated value.</summary>
+        private static string DisplayValue(object v)
+        {
+            if (v == null || v is System.DBNull) return "";
+            if (v is object[,] arr)
+            {
+                var parts = new List<string>();
+                foreach (var c in arr)
+                {
+                    parts.Add(c?.ToString() ?? "");
+                    if (parts.Count >= 5) break;
+                }
+                bool more = arr.Length > parts.Count;
+                return "{" + string.Join(", ", parts) + (more ? ", …" : "") + "}";
+            }
+            string s = v.ToString() ?? "";
+            return s.Length > 120 ? s.Substring(0, 120) + "…" : s;
         }
 
         private static IEnumerable<string> RegisteredNames(dynamic wb)
