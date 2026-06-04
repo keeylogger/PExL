@@ -9,8 +9,7 @@ PExL transpiles elegant, English-like code into native Excel formulas.
 
 [Quick start](#quick-start) · [Why PExL](#why-pexl) · [Cheat sheet](#cheat-sheet) · [How it works](#how-it-works) · [Building](#building) · [FAQ](#faq)
 
-📖 **Full docs, glossary, tutorial & live playground →** open [`README.html`](README.html) in your browser
-([rendered version](https://htmlpreview.github.io/?https://github.com/keeylogger/PExL/blob/main/README.html))
+📖 **Full docs, glossary, tutorial & live playground →** [**keeylogger.github.io/PExL**](https://keeylogger.github.io/PExL/)
 
 </div>
 
@@ -132,7 +131,7 @@ Prefer to build it yourself? See [Building](#-building).
 | Anything   | `raw("FUNC", ...)`                                | `=FUNC(...)`                           |
 
 👉 The full reference — **every symbol, keyword and verb**, plus a tutorial and a live
-playground — lives in the [interactive docs](README.html) and
+playground — lives in the [interactive docs](https://keeylogger.github.io/PExL/) and
 [`docs/language-spec.md`](docs/language-spec.md).
 
 ---
@@ -247,7 +246,7 @@ Yes. Select the cell and click **Translate Formula** — the decompiler rewrites
 readable PExL (nested `IF`/`IFS` ladders come back as a clean `check` block).
 
 **Where's the complete language reference?**
-In the [interactive docs](README.html) (searchable glossary + live playground) and
+In the [interactive docs](https://keeylogger.github.io/PExL/) (searchable glossary + live playground) and
 [`docs/language-spec.md`](docs/language-spec.md).
 
 **How can I contribute or report a bug?**
@@ -259,6 +258,6 @@ Open an [issue](https://github.com/keeylogger/PExL/issues) or a PR — see
 <div align="center">
 
 Made for everyone who's ever lost an afternoon to a runaway `=IF()`.
-[MIT licensed](LICENSE) · [Interactive docs](README.html) · [Report an issue](https://github.com/keeylogger/PExL/issues)
+[MIT licensed](LICENSE) · [Interactive docs](https://keeylogger.github.io/PExL/) · [Report an issue](https://github.com/keeylogger/PExL/issues)
 
 </div>
